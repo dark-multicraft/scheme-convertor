@@ -8,6 +8,8 @@ it will tell you where it put the files with the commands.
  
 it can be used on minetest but i think there is better way to implement 3D model in block onto minetest
 just copy the list of command it give you in a command block (of mesecon)
+do //1 and //2 where ever you want on the map (will be where the thing generate)
+and activate the command block !
 
 ## TODO:
 add an interface and make it usable by everyone:
