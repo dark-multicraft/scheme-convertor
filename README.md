@@ -1,4 +1,4 @@
-# WorldEdit Converter
+# WorldEdit Converter beta
 
 > Fork of [multi-nono/3D-Model-To-world.edit-command-minetest-W.E-](https://github.com/multi-nono/3D-Model-To-world.edit-command-minetest-W.E-)
 
