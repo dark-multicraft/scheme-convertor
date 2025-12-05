@@ -1700,6 +1700,15 @@
 
         function isStair(name) { return name.toLowerCase().includes('stairs'); }
         function isSlab(name) { return name.toLowerCase().includes('slab'); }
+        function isTrapdoor(name) { return name.toLowerCase().includes('trapdoor'); }
+        function isDoor(name) { return name.toLowerCase().includes('_door') && !name.toLowerCase().includes('trapdoor'); }
+        function isLadder(name) { return name.toLowerCase().includes('ladder'); }
+        function isFenceGate(name) { return name.toLowerCase().includes('fence_gate'); }
+        function isButton(name) { return name.toLowerCase().includes('button'); }
+        function isLever(name) { return name.toLowerCase().includes('lever'); }
+        function isSign(name) { return name.toLowerCase().includes('sign'); }
+        function isChest(name) { return name.toLowerCase().includes('chest'); }
+        function isFurnace(name) { return name.toLowerCase().includes('furnace'); }
 
         function getParam2Stairs(states) {
             const map = { north: 2, south: 0, east: 1, west: 3 };
@@ -1714,6 +1723,66 @@
             return 0;
         }
 
+        // トラップドア: facing + half + open
+        function getParam2Trapdoor(states) {
+            // Minetestのトラップドア param2:
+            // 0-3: 下側、閉じ (facing方向)
+            // 4-7: 下側、開き
+            // 20-23: 上側、閉じ
+            // 24-27: 上側、開き (非標準だが互換性のため)
+            const facingMap = { north: 2, south: 0, east: 1, west: 3 };
+            let p = facingMap[states.facing] || 0;
+            if (states.open === 'true') p += 4;
+            if (states.half === 'top') p += 20;
+            return p;
+        }
+
+        // ドア: facing + hinge + half
+        function getParam2Door(states) {
+            // Minetestのドア param2: 0-3 (facing方向)
+            const facingMap = { north: 2, south: 0, east: 3, west: 1 };
+            let p = facingMap[states.facing] || 0;
+            // hingeがrightの場合、反転
+            if (states.hinge === 'right') p = (p + 2) % 4;
+            return p;
+        }
+
+        // はしご: facing
+        function getParam2Ladder(states) {
+            const facingMap = { north: 5, south: 4, east: 2, west: 3 };
+            return facingMap[states.facing] || 2;
+        }
+
+        // フェンスゲート: facing
+        function getParam2FenceGate(states) {
+            const facingMap = { north: 2, south: 0, east: 1, west: 3 };
+            let p = facingMap[states.facing] || 0;
+            if (states.open === 'true') p += 4;
+            return p;
+        }
+
+        // ボタン: facing + face
+        function getParam2Button(states) {
+            if (states.face === 'ceiling') return 0;
+            if (states.face === 'floor') return 5;
+            const facingMap = { north: 4, south: 3, east: 2, west: 1 };
+            return facingMap[states.facing] || 3;
+        }
+
+        // レバー: facing + face
+        function getParam2Lever(states) {
+            if (states.face === 'ceiling') return 0;
+            if (states.face === 'floor') return 5;
+            const facingMap = { north: 4, south: 3, east: 2, west: 1 };
+            return facingMap[states.facing] || 3;
+        }
+
+        // 設置型ブロック（チェスト、かまど等）: facing
+        function getParam2Facing(states) {
+            const facingMap = { north: 0, south: 2, east: 3, west: 1 };
+            return facingMap[states.facing] || 0;
+        }
+
         function getMulticraftBlock(mcName) {
             let [base, states] = parseBlockState(mcName.toLowerCase());
             if (!base.startsWith('minecraft:')) base = 'minecraft:' + base;
@@ -1721,6 +1790,13 @@
             let param2 = 0;
             if (isStair(base)) param2 = getParam2Stairs(states);
             else if (isSlab(base)) param2 = getParam2Slab(states);
+            else if (isTrapdoor(base)) param2 = getParam2Trapdoor(states);
+            else if (isDoor(base)) param2 = getParam2Door(states);
+            else if (isLadder(base)) param2 = getParam2Ladder(states);
+            else if (isFenceGate(base)) param2 = getParam2FenceGate(states);
+            else if (isButton(base)) param2 = getParam2Button(states);
+            else if (isLever(base)) param2 = getParam2Lever(states);
+            else if (isChest(base) || isFurnace(base)) param2 = getParam2Facing(states);
 
             if (userMappings[base] !== undefined) {
                 if (userMappings[base] === null) return [null, 0];
