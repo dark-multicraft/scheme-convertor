@@ -1,25 +1,36 @@
-# 3D-Model-To-world.edit-command (minetest-W.E)
-a simple project who able me to transfer some 3D model in multicraft (on server) without having to add any files or anything !
-<img width="1264" height="695" alt="Capture_decran_2025-09-07_a_10 35 40" src="https://github.com/user-attachments/assets/09bfb354-8bb1-410f-8785-984d11eee896" />
+# scheme-convertor
 
-## how to use it:
-lunch it with visual studio and chose a python environement...
-### size parameters are experimentals.
-it will tell you where it put the files with the commands.
- 
-it can be used on minetest but i think there is better way to implement 3D model in block onto minetest
-just copy the list of command it give you in a command block (of mesecon)
-do //1 and //2 where ever you want on the map (will be where the thing generate)
-and activate the command block !
+Convert Minecraft schematics and 3D models to Multicraft/Minetest WorldEdit commands.
 
-## TODO:
-add an interface and make it usable by everyone:
+> Fork of [multi-nono/3D-Model-To-world.edit-command-minetest-W.E-](https://github.com/multi-nono/3D-Model-To-world.edit-command-minetest-W.E-)
 
-preview of the 3D model in blocks	
-and easy copy and paste in game
+## Features
 
-add color with a palette that lists all the blocks and compares them to the colors of a 3D model
-need to have every multicraft texture, 
-in the interface i'll make a tab to change the texture pack it use to refer the colors...
+- Convert `.schem`, `.nbt`, `.litematic` files to WorldEdit commands
+- Convert 3D models (`.obj`, `.stl`) via voxelization
+- Web-based GUI and Python CLI options
 
-add a compatibility with stair mod.
+## Quick Start
+
+### Web GUI
+Open `schem_converter.html` in a browser, drop a file, and click "Convert".
+
+### Python CLI
+```bash
+pip install nbtlib trimesh numpy
+
+# For schematics
+python schem.py <input_file>
+
+# For 3D models
+python model_to_cmd.py
+```
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `schem_converter.html` | Web-based converter |
+| `schem.py` | Schematic converter (CLI) |
+| `model_to_cmd.py` | 3D model converter |
+| `block_mapping.js` | Block name mappings |
