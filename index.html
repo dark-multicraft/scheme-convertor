@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schematic Converter β</title>
+    <title>Schematic Converter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="multicraft_items.js"></script>
     <!-- Three.js r125 for 3D model loading (older version that supports global namespace) -->
@@ -159,32 +159,6 @@
 
         .settings-3d.visible {
             display: block;
-        }
-
-        .settings-unknown {
-            display: none;
-            margin-top: 16px;
-            padding: 12px;
-            background: #f8f8f8;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .settings-unknown.visible {
-            display: block;
-        }
-
-        .settings-unknown h2 {
-            margin-top: 0;
-            margin-bottom: 8px;
-        }
-
-        .settings-unknown .hint {
-            font-size: 0.8rem;
-            color: #666;
-            margin-bottom: 12px;
         }
 
         /* Unknown Blocks Modal */
@@ -715,7 +689,7 @@
     <div class="container">
         <!-- Left Panel -->
         <div class="panel">
-            <h1>Schematic Converter β</h1>
+            <h1>Schematic Converter</h1>
 
             <div class="drop-zone" id="dropZone">
                 <p>NBT/3Dモデルをドロップ<br>またはクリック<br><small style="color:#999">OBJ+MTLは両方選択可</small></p>
@@ -744,6 +718,13 @@
                 </div>
             </div>
 
+            <!-- NBT/Schem用：未対応ブロックセクション -->
+            <div class="settings-nbt" id="settingsNBT">
+                <h2 style="margin-top:16px;">未対応ブロック</h2>
+                <div class="unknown-hint" style="margin-bottom:10px;">空欄=デフォルト / air=スキップ</div>
+                <div class="unknown-list" id="unknownList"></div>
+            </div>
+
             <h2>状態</h2>
             <div class="status-item">
                 <span class="status-label">ファイル</span>
@@ -759,13 +740,6 @@
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
-            </div>
-
-            <!-- 未対応ブロックセクション (NBT/Schem用) -->
-            <div class="settings-unknown" id="settingsUnknown">
-                <h2>未対応ブロック</h2>
-                <div class="hint">空欄 = デフォルト変換 / air = スキップ</div>
-                <div class="unknown-list" id="unknownList"></div>
             </div>
 
             <button class="convert-btn" id="convertBtn" disabled style="margin-top:20px;">変換開始</button>
