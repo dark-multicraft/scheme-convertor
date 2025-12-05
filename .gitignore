@@ -1,7 +1,2 @@
 /Minetest-WorldEdit
-*.nbt
-*.obj
-*.txt
-*.ply
-*.stl
-*.mtl
+/input
