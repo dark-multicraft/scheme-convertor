@@ -6,7 +6,7 @@
 Converts various file types into WorldEdit command format.  
 Can be executed on any server with mesecons and WorldEdit installed!  
 
-**Supported Files📁**  
+**Supported Files 📁**  
 > Minecraft Schematic Files (`.schem`, `.nbt`)  
 > Minetest WorldEdit Files (`.we`)  
 > 3D Model Files (`.obj`, `.stl`)  
