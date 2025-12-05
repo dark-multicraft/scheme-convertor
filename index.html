@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schematic Converter</title>
+    <title>Schematic Converter β</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="multicraft_items.js"></script>
     <!-- Three.js r125 for 3D model loading (older version that supports global namespace) -->
@@ -160,6 +160,24 @@
         .settings-3d.visible {
             display: block;
         }
+
+        .settings-nbt {
+            display: none;
+        }
+
+        .settings-nbt.visible {
+            display: block;
+        }
+
+        .settings-nbt .unknown-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 8px;
+            background: #fafafa;
+        }
+
 
         /* Unknown Blocks Modal */
         .unknown-modal {
@@ -682,99 +700,267 @@
         .cmd-param {
             color: #ce9178;
         }
+
+        /* Clean UI Styles */
+        .drop-zone {
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            padding: 32px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            margin-bottom: 16px;
+            background: #fafafa;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: #666;
+            background: #f5f5f5;
+        }
+
+        .drop-zone-icon {
+            font-size: 2rem;
+            color: #999;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .drop-zone-text {
+            color: #555;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .drop-zone-hint {
+            color: #999;
+            font-size: 0.75rem;
+        }
+
+        .drop-zone input {
+            display: none;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+
+        .status-bar #fileName {
+            color: #2e7d32;
+            font-weight: 500;
+        }
+
+        .status-bar #blockCount {
+            color: #666;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .settings-group-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 10px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .action-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            background: #222;
+            color: #fff;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            flex: 0 0 auto;
+            background: #fff;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #f5f5f5;
+            border-color: #bbb;
+        }
+
+        .btn-secondary:disabled {
+            color: #aaa;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .progress-section .progress-bar {
+            flex: 1;
+            margin: 0;
+        }
+
+        .progress-label {
+            font-size: 0.8rem;
+            color: #666;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 12px;
+        }
+
+        .output-tabs .tab {
+            padding: 8px 0;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #333;
+            border-bottom: 2px solid #333;
+        }
+
+        .log-panel {
+            flex: 1;
+            min-height: 200px;
+        }
+
+        .download-area {
+            flex-shrink: 0;
+            margin-top: auto;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
         <!-- Left Panel -->
-        <div class="panel">
-            <h1>Schematic Converter</h1>
+        <div class="panel left-panel">
+            <h1>Schematic Converter β</h1>
 
             <div class="drop-zone" id="dropZone">
-                <p>NBT/3Dモデルをドロップ<br>またはクリック<br><small style="color:#999">OBJ+MTLは両方選択可</small></p>
-                <input type="file" id="fileInput" accept=".nbt,.schem,.obj,.stl,.ply,.mtl" multiple>
-            </div>
-
-            <div class="setting-group">
-                <label>最大行数</label>
-                <input type="number" id="maxLines" value="30000" min="1000" max="100000">
-            </div>
-            <div class="setting-group">
-                <label>スケール</label>
-                <input type="number" id="scale" value="1" min="1" max="10">
-            </div>
-
-            <div class="settings-3d" id="settings3D">
-                <h2 style="margin-top:16px;">3Dモデル設定</h2>
-                <div class="setting-group">
-                    <label>解像度（小さいほど詳細）</label>
-                    <input type="number" id="resolution" value="0.5" min="0.01" max="10" step="0.01">
+                <div class="drop-zone-content">
+                    <div class="drop-zone-icon">+</div>
+                    <div class="drop-zone-text">ファイルをドロップまたはクリック</div>
+                    <div class="drop-zone-hint">.nbt .schem .obj .stl</div>
                 </div>
-                <div class="setting-group">
-                    <label>デフォルトブロックID</label>
-                    <input type="text" id="blockId" value="default:stone" placeholder="default:stone">
-                    <small style="color:#888;font-size:0.8rem;display:block;margin-top:4px;">※色情報がない場合に使用</small>
+                <input type="file" id="fileInput" accept=".nbt,.schem,.obj,.stl,.mtl" multiple>
+            </div>
+
+            <div class="status-bar" id="statusBar" style="display:none;">
+                <span id="fileName"></span>
+                <span id="blockCount"></span>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-grid">
+                    <div class="setting-group">
+                        <label>最大行数</label>
+                        <input type="number" id="maxLines" value="30000" min="1000" max="100000">
+                    </div>
+                    <div class="setting-group">
+                        <label>スケール</label>
+                        <input type="number" id="scale" value="1" min="1" max="10">
+                    </div>
+                </div>
+
+                <div class="settings-3d" id="settings3D">
+                    <div class="settings-group-title">3Dモデル</div>
+                    <div class="settings-grid">
+                        <div class="setting-group">
+                            <label>解像度</label>
+                            <input type="number" id="resolution" value="0.5" min="0.01" max="10" step="0.01">
+                        </div>
+                        <div class="setting-group">
+                            <label>ブロック</label>
+                            <input type="text" id="blockId" value="default:stone">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-nbt" id="settingsNBT">
+                    <div class="settings-group-title">未対応ブロック</div>
+                    <div class="unknown-hint">空欄=デフォルト / air=スキップ</div>
+                    <div class="unknown-list" id="unknownList"></div>
                 </div>
             </div>
 
-            <!-- NBT/Schem用：未対応ブロックセクション -->
-            <div class="settings-nbt" id="settingsNBT">
-                <h2 style="margin-top:16px;">未対応ブロック</h2>
-                <div class="unknown-hint" style="margin-bottom:10px;">空欄=デフォルト / air=スキップ</div>
-                <div class="unknown-list" id="unknownList"></div>
+            <div class="action-section">
+                <button class="btn-primary" id="convertBtn" disabled>変換</button>
+                <button class="btn-secondary" id="previewBtn" disabled>プレビュー</button>
             </div>
 
-            <h2>状態</h2>
-            <div class="status-item">
-                <span class="status-label">ファイル</span>
-                <span class="status-value" id="fileName">-</span>
+            <div class="progress-section" id="progressSection" style="display:none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-label" id="commandCount"></div>
             </div>
-            <div class="status-item">
-                <span class="status-label">ブロック</span>
-                <span class="status-value" id="blockCount">-</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">コマンド</span>
-                <span class="status-value" id="commandCount">-</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-
-            <button class="convert-btn" id="convertBtn" disabled style="margin-top:20px;">変換開始</button>
-            <button class="preview-btn" id="previewBtn" disabled>3Dプレビュー</button>
         </div>
 
         <!-- Right Panel -->
-        <div class="panel" style="display:flex;flex-direction:column;">
-            <h2>ログ</h2>
+        <div class="panel right-panel">
+            <div class="output-tabs">
+                <span class="tab active">ログ</span>
+            </div>
             <div class="log-panel" id="logPanel"></div>
             <div class="download-area" id="downloadArea"></div>
         </div>
-    </div>
-
-    <!-- Unknown Blocks Modal -->
-    <div class="unknown-modal" id="unknownModal">
-        <div class="unknown-modal-content">
-            <div class="unknown-modal-header">
-                <h3>未対応ブロックの置き換え</h3>
-                <button class="unknown-modal-close" id="unknownModalClose">&times;</button>
-            </div>
-            <div class="unknown-modal-body">
-                <div class="unknown-modal-hint">
-                    空欄 = デフォルト変換 / <code>air</code> = スキップ（配置しない）
-                </div>
-                <div class="unknown-list" id="unknownList"></div>
-            </div>
-            <div class="unknown-modal-footer">
-                <button class="btn-secondary" id="unknownModalSkip">デフォルトで続行</button>
-                <button class="btn-primary" id="unknownModalApply">適用して変換</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Preview Modal -->
+    </div><!-- Preview Modal -->
     <div class="preview-modal" id="previewModal">
         <div class="preview-header">
             <span class="preview-title">ボクセルプレビュー</span>
@@ -1069,45 +1255,31 @@
         const logPanel = document.getElementById('logPanel');
         const resolutionInput = document.getElementById('resolution');
         const settings3D = document.getElementById('settings3D');
-        const unknownModal = document.getElementById('unknownModal');
-        const unknownModalClose = document.getElementById('unknownModalClose');
-        const unknownModalSkip = document.getElementById('unknownModalSkip');
-        const unknownModalApply = document.getElementById('unknownModalApply');
+        const settingsNBT = document.getElementById('settingsNBT');
 
         // Track if the user manually edited the resolution so we don't overwrite it on the next file
         resolutionInput.addEventListener('input', () => { userResolutionLocked = true; });
 
-        // Unknown Modal Controls
-        function showUnknownModal() {
-            unknownModal.classList.add('active');
-        }
-        function hideUnknownModal() {
-            unknownModal.classList.remove('active');
-        }
-        unknownModalClose.addEventListener('click', hideUnknownModal);
-        unknownModalSkip.addEventListener('click', () => {
-            hideUnknownModal();
-            // Use defaults and proceed
-            collectMappings();
-            log('デフォルト変換で続行します');
-        });
-        unknownModalApply.addEventListener('click', () => {
-            hideUnknownModal();
-            collectMappings();
-            doConvert();
-        });
-        unknownModal.addEventListener('click', (e) => {
-            if (e.target === unknownModal) hideUnknownModal();
-        });
-
-        // Toggle 3D settings visibility
-        function update3DSettingsVisibility() {
+        // Toggle settings sections visibility
+        function updateSettingsVisibility() {
             if (is3DModel) {
                 settings3D.classList.add('visible');
+                settingsNBT.classList.remove('visible');
             } else {
                 settings3D.classList.remove('visible');
+                if (Object.keys(unknownBlocks).length > 0) {
+                    settingsNBT.classList.add('visible');
+                } else {
+                    settingsNBT.classList.remove('visible');
+                }
             }
         }
+
+        // backward compat
+        function update3DSettingsVisibility() {
+            updateSettingsVisibility();
+        }
+
 
         // ========== Utils ==========
         function log(msg, type = '') {
@@ -1283,13 +1455,7 @@
                         } else if (ext === 'stl') {
                             const loader = new THREE.STLLoader();
                             geometry = loader.parse(e.target.result);
-                        } else if (ext === 'ply') {
-                            const loader = new THREE.PLYLoader();
-                            geometry = loader.parse(e.target.result);
-                            // PLYは頂点カラーを持つことが多い
-                            if (geometry.getAttribute('color')) {
-                                log('PLY頂点カラーを検出しました', 'success');
-                            }
+
                         } else {
                             reject(new Error(`未対応のファイル形式: ${ext}`));
                             return;
@@ -2008,7 +2174,7 @@
                     if (Object.keys(unknownBlocks).length > 0) {
                         renderUnknownBlocks(unknownBlocks);
                         log(`未対応: ${Object.keys(unknownBlocks).length}種類`, 'warning');
-                        showUnknownModal();
+                        updateSettingsVisibility();
                     }
                     convertBtn.disabled = false;
                 }
@@ -2118,10 +2284,49 @@
             for (const v of vox) { const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; mnX = Math.min(mnX, x); mxX = Math.max(mxX, x); mnY = Math.min(mnY, y); mxY = Math.max(mxY, y); mnZ = Math.min(mnZ, z); mxZ = Math.max(mxZ, z); }
             const cx = (mnX + mxX) / 2, cy = (mnY + mxY) / 2, cz = (mnZ + mxZ) / 2, sz = Math.max(mxX - mnX, mxY - mnY, mxZ - mnZ) + 1;
             const geo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
-            const mat = new THREE.MeshLambertMaterial({ color: 0x4a90d9, wireframe: wireMode });
-            const mesh = new THREE.InstancedMesh(geo, mat, vox.length);
-            const m = new THREE.Matrix4();
-            for (let i = 0; i < vox.length; i++) { const v = vox[i]; const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; m.setPosition(x - cx, y - cy, z - cz); mesh.setMatrixAt(i, m); }
+            
+            // Check if any voxel has color data (blockId)
+            const hasColorData = !isNBT && vox.some(v => v[3] !== null && v[3] !== undefined);
+            
+            let mat, mesh;
+            if (hasColorData) {
+                // Use vertex colors for colored voxels
+                mat = new THREE.MeshLambertMaterial({ wireframe: wireMode });
+                mesh = new THREE.InstancedMesh(geo, mat, vox.length);
+                
+                const m = new THREE.Matrix4();
+                for (let i = 0; i < vox.length; i++) {
+                    const v = vox[i];
+                    const [x, y, z, blockId] = v;
+                    m.setPosition(x - cx, y - cy, z - cz);
+                    mesh.setMatrixAt(i, m);
+                    
+                    // Find color from blockId
+                    let r = 0.3, g = 0.5, b = 0.8; // Default blue
+                    if (blockId) {
+                        const block = BLOCK_COLORS.find(bc => bc.name === blockId);
+                        if (block) {
+                            r = block.r / 255;
+                            g = block.g / 255;
+                            b = block.b / 255;
+                        }
+                    }
+                    mesh.setColorAt(i, new THREE.Color(r, g, b));
+                }
+                mesh.instanceColor.needsUpdate = true;
+            } else {
+                // Single color for NBT or non-colored 3D models
+                mat = new THREE.MeshLambertMaterial({ color: 0x4a90d9, wireframe: wireMode });
+                mesh = new THREE.InstancedMesh(geo, mat, vox.length);
+                const m = new THREE.Matrix4();
+                for (let i = 0; i < vox.length; i++) { 
+                    const v = vox[i]; 
+                    const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; 
+                    m.setPosition(x - cx, y - cy, z - cz); 
+                    mesh.setMatrixAt(i, m); 
+                }
+            }
+            
             mesh.instanceMatrix.needsUpdate = true;
             previewScene.add(mesh); previewMesh = mesh;
             previewCamera.position.set(0, 0, sz * 1.5); previewCamera.lookAt(0, 0, 0);
