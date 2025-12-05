@@ -4,13 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schematic Converter</title>
+    <title>Schematic Converter β</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="multicraft_items.js"></script>
     <!-- Three.js r125 for 3D model loading (older version that supports global namespace) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/MTLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/PLYLoader.js"></script>
     <style>
         * {
             margin: 0;
@@ -19,59 +21,70 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fff;
-            color: #333;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f5;
+            color: #222;
             height: 100vh;
             overflow: hidden;
         }
 
         .container {
             display: grid;
-            grid-template-columns: 280px 1fr 320px;
+            grid-template-columns: 1fr 1fr;
             height: 100vh;
-            gap: 1px;
-            background: #e0e0e0;
+            gap: 0;
+            background: #f5f5f5;
         }
 
         .panel {
             background: #fff;
-            padding: 20px;
+            padding: 20px 24px;
             overflow-y: auto;
+            border-left: 1px solid #e8e8e8;
+        }
+
+        .panel:first-child {
+            border-left: none;
         }
 
         h1 {
             font-size: 1.1rem;
-            font-weight: 500;
-            margin-bottom: 16px;
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: #111;
+            letter-spacing: -0.01em;
         }
 
         h2 {
-            font-size: 0.9rem;
-            font-weight: 500;
+            font-size: 0.85rem;
+            font-weight: 600;
             margin-bottom: 12px;
-            color: #666;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
 
         /* Left Panel */
         .drop-zone {
-            border: 1px dashed #ccc;
+            border: 2px dashed #d0d0d0;
             border-radius: 6px;
-            padding: 24px 16px;
+            padding: 28px 16px;
             text-align: center;
             cursor: pointer;
-            transition: border-color 0.2s;
+            transition: all 0.15s;
             margin-bottom: 20px;
+            background: #fafafa;
         }
 
         .drop-zone:hover,
         .drop-zone.dragover {
-            border-color: #666;
+            border-color: #888;
+            background: #f0f0f0;
         }
 
         .drop-zone p {
-            color: #666;
-            font-size: 0.85rem;
+            color: #555;
+            font-size: 0.9rem;
             line-height: 1.5;
         }
 
@@ -85,55 +98,203 @@
 
         .setting-group label {
             display: block;
-            color: #666;
-            font-size: 0.8rem;
-            margin-bottom: 4px;
+            color: #555;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
         }
 
         .setting-group input {
             width: 100%;
-            padding: 8px 10px;
-            border: 1px solid #ddd;
+            padding: 10px 12px;
+            border: 1px solid #d8d8d8;
             border-radius: 4px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            background: #fff;
         }
 
         .setting-group input:focus {
             outline: none;
-            border-color: #999;
+            border-color: #888;
         }
 
         .status-item {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
-            font-size: 0.85rem;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #eee;
         }
 
         .status-label {
-            color: #888;
+            color: #777;
         }
 
         .status-value {
-            color: #333;
+            color: #222;
             font-weight: 500;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 0.85rem;
         }
 
         .progress-bar {
             width: 100%;
-            height: 3px;
-            background: #eee;
-            border-radius: 2px;
-            margin-top: 12px;
+            height: 2px;
+            background: #e5e5e5;
+            border-radius: 1px;
+            margin-top: 10px;
             overflow: hidden;
         }
 
         .progress-fill {
             height: 100%;
-            background: #333;
+            background: #444;
             width: 0%;
-            transition: width 0.3s;
+            transition: width 0.2s;
+        }
+
+        /* Conditional settings sections */
+        .settings-3d {
+            display: none;
+        }
+
+        .settings-3d.visible {
+            display: block;
+        }
+
+        .settings-unknown {
+            display: none;
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .settings-unknown.visible {
+            display: block;
+        }
+
+        .settings-unknown h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .settings-unknown .hint {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        /* Unknown Blocks Modal */
+        .unknown-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 900;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .unknown-modal.active {
+            display: flex;
+        }
+
+        .unknown-modal-content {
+            background: #fff;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .unknown-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8f8f8;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .unknown-modal-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .unknown-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #888;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .unknown-modal-close:hover {
+            color: #333;
+        }
+
+        .unknown-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+        }
+
+        .unknown-modal-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 16px;
+            padding: 10px 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .unknown-modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .unknown-modal-footer button {
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .unknown-modal-footer .btn-primary {
+            background: #222;
+            color: #fff;
+            border: none;
+        }
+
+        .unknown-modal-footer .btn-primary:hover {
+            background: #333;
+        }
+
+        .unknown-modal-footer .btn-secondary {
+            background: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        .unknown-modal-footer .btn-secondary:hover {
+            background: #f5f5f5;
         }
 
         /* Center Panel */
@@ -143,15 +304,15 @@
         }
 
         .unknown-header {
-            padding-bottom: 12px;
+            padding-bottom: 14px;
             border-bottom: 1px solid #eee;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .unknown-hint {
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: #888;
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
         .unknown-list {
@@ -162,21 +323,22 @@
         .unknown-item {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 14px;
             padding: 10px 0;
-            border-bottom: 1px solid #f5f5f5;
+            border-bottom: 1px solid #eee;
             align-items: center;
         }
 
         .unknown-name {
-            font-family: monospace;
+            font-family: 'SF Mono', Consolas, monospace;
             font-size: 0.8rem;
             color: #333;
+            word-break: break-all;
         }
 
         .unknown-count {
-            font-size: 0.75rem;
-            color: #999;
+            font-size: 0.8rem;
+            color: #888;
         }
 
         .autocomplete-wrapper {
@@ -185,16 +347,17 @@
 
         .unknown-input {
             width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #ddd;
+            padding: 8px 10px;
+            border: 1px solid #d8d8d8;
             border-radius: 4px;
-            font-family: monospace;
-            font-size: 0.8rem;
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 0.85rem;
+            background: #fff;
         }
 
         .unknown-input:focus {
             outline: none;
-            border-color: #999;
+            border-color: #888;
         }
 
         .autocomplete-list {
@@ -217,95 +380,139 @@
         }
 
         .autocomplete-item {
-            padding: 6px 8px;
+            padding: 8px 10px;
             cursor: pointer;
-            font-size: 0.8rem;
-            border-bottom: 1px solid #f5f5f5;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #eee;
         }
 
         .autocomplete-item:hover {
-            background: #f5f5f5;
+            background: #f0f0f0;
         }
 
         .autocomplete-item .item-id {
-            font-family: monospace;
+            font-family: 'SF Mono', Consolas, monospace;
             color: #333;
         }
 
         .autocomplete-item .item-name {
-            color: #888;
+            color: #777;
             font-size: 0.75rem;
         }
 
         .convert-btn {
             margin-top: 16px;
             width: 100%;
-            padding: 10px;
-            background: #333;
+            padding: 12px;
+            background: #222;
             color: #fff;
             border: none;
             border-radius: 4px;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            font-weight: 500;
             cursor: pointer;
+            transition: background 0.15s;
         }
 
         .convert-btn:hover {
-            background: #444;
+            background: #333;
         }
 
         .convert-btn:disabled {
-            background: #ccc;
+            background: #bbb;
             cursor: not-allowed;
         }
 
         /* Right Panel */
         .log-panel {
-            font-family: monospace;
-            font-size: 0.75rem;
+            font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.8rem;
             flex: 1;
             overflow-y: auto;
-            background: #fafafa;
-            border: 1px solid #eee;
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
             border-radius: 4px;
-            padding: 8px;
+            padding: 12px 14px;
             margin-bottom: 16px;
+            line-height: 1.6;
         }
 
         .log-entry {
             padding: 2px 0;
-            color: #666;
+            color: #555;
         }
 
         .log-entry.success {
-            color: #2a7;
+            color: #2a8;
         }
 
         .log-entry.error {
-            color: #c44;
+            color: #d44;
         }
 
         .log-entry.warning {
-            color: #a70;
+            color: #a80;
         }
 
         .download-area {
             margin-top: auto;
         }
 
+        .download-item {
+            margin-bottom: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 12px 14px;
+            background: #fafafa;
+        }
+
+        .download-item-header {
+            font-size: 0.9rem;
+            color: #444;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
         .download-link {
+            flex: 1;
             display: block;
-            background: #333;
+            background: #222;
             color: #fff;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 4px;
             text-decoration: none;
             font-size: 0.85rem;
-            margin-bottom: 6px;
             text-align: center;
+            transition: background 0.15s;
         }
 
         .download-link:hover {
-            background: #444;
+            background: #333;
+        }
+
+        .copy-btn {
+            flex: 1;
+            background: #555;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 4px;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .copy-btn:hover {
+            background: #666;
+        }
+
+        .copy-btn.copied {
+            background: #3a3;
         }
 
         .empty-state {
@@ -314,6 +521,193 @@
             text-align: center;
             padding: 40px 20px;
         }
+
+        /* Voxel Preview Modal */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+        }
+
+        .preview-modal.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .preview-title {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .preview-info {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .preview-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+
+        .preview-close:hover {
+            color: #f55;
+        }
+
+        .preview-canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .preview-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 16px;
+            border-radius: 8px;
+        }
+
+        .preview-controls button {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .preview-controls button:hover {
+            background: #444;
+        }
+
+        .preview-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #888;
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        .preview-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 8px;
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .preview-btn:hover {
+            background: #666;
+        }
+
+        .preview-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Command Preview */
+        .command-preview {
+            margin-top: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .command-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+        }
+
+        .command-preview-header:hover {
+            background: #eee;
+        }
+
+        .command-preview-title {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .command-preview-toggle {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+        }
+
+        .command-preview-content {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            line-height: 1.4;
+        }
+
+        .command-preview-content.collapsed {
+            display: none;
+        }
+
+        .cmd-line {
+            color: #d4d4d4;
+            white-space: pre;
+            display: block;
+        }
+
+        .cmd-shift {
+            color: #6a9955;
+        }
+
+        .cmd-set {
+            color: #569cd6;
+        }
+
+        .cmd-param {
+            color: #ce9178;
+        }
     </style>
 </head>
 
@@ -321,11 +715,11 @@
     <div class="container">
         <!-- Left Panel -->
         <div class="panel">
-            <h1>Schematic Converter</h1>
+            <h1>Schematic Converter β</h1>
 
             <div class="drop-zone" id="dropZone">
-                <p>NBT/3Dモデルをドロップ<br>またはクリック</p>
-                <input type="file" id="fileInput" accept=".nbt,.schem,.obj,.stl">
+                <p>NBT/3Dモデルをドロップ<br>またはクリック<br><small style="color:#999">OBJ+MTLは両方選択可</small></p>
+                <input type="file" id="fileInput" accept=".nbt,.schem,.obj,.stl,.ply,.mtl" multiple>
             </div>
 
             <div class="setting-group">
@@ -337,14 +731,17 @@
                 <input type="number" id="scale" value="1" min="1" max="10">
             </div>
 
-            <h2 style="margin-top:16px;">3Dモデル設定</h2>
-            <div class="setting-group">
-                <label>解像度（小さいほど詳細）</label>
-                <input type="number" id="resolution" value="0.5" min="0.01" max="10" step="0.01">
-            </div>
-            <div class="setting-group">
-                <label>ブロックID</label>
-                <input type="text" id="blockId" value="default:stone" placeholder="default:stone">
+            <div class="settings-3d" id="settings3D">
+                <h2 style="margin-top:16px;">3Dモデル設定</h2>
+                <div class="setting-group">
+                    <label>解像度（小さいほど詳細）</label>
+                    <input type="number" id="resolution" value="0.5" min="0.01" max="10" step="0.01">
+                </div>
+                <div class="setting-group">
+                    <label>デフォルトブロックID</label>
+                    <input type="text" id="blockId" value="default:stone" placeholder="default:stone">
+                    <small style="color:#888;font-size:0.8rem;display:block;margin-top:4px;">※色情報がない場合に使用</small>
+                </div>
             </div>
 
             <h2>状態</h2>
@@ -363,18 +760,16 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
-        </div>
 
-        <!-- Center Panel -->
-        <div class="panel center-panel">
-            <div class="unknown-header">
+            <!-- 未対応ブロックセクション (NBT/Schem用) -->
+            <div class="settings-unknown" id="settingsUnknown">
                 <h2>未対応ブロック</h2>
-                <div class="unknown-hint">空欄=デフォルト / air=スキップ</div>
+                <div class="hint">空欄 = デフォルト変換 / air = スキップ</div>
+                <div class="unknown-list" id="unknownList"></div>
             </div>
-            <div class="unknown-list" id="unknownList">
-                <div class="empty-state">ファイルを読み込むと表示されます</div>
-            </div>
-            <button class="convert-btn" id="convertBtn" disabled>変換開始</button>
+
+            <button class="convert-btn" id="convertBtn" disabled style="margin-top:20px;">変換開始</button>
+            <button class="preview-btn" id="previewBtn" disabled>3Dプレビュー</button>
         </div>
 
         <!-- Right Panel -->
@@ -382,6 +777,43 @@
             <h2>ログ</h2>
             <div class="log-panel" id="logPanel"></div>
             <div class="download-area" id="downloadArea"></div>
+        </div>
+    </div>
+
+    <!-- Unknown Blocks Modal -->
+    <div class="unknown-modal" id="unknownModal">
+        <div class="unknown-modal-content">
+            <div class="unknown-modal-header">
+                <h3>未対応ブロックの置き換え</h3>
+                <button class="unknown-modal-close" id="unknownModalClose">&times;</button>
+            </div>
+            <div class="unknown-modal-body">
+                <div class="unknown-modal-hint">
+                    空欄 = デフォルト変換 / <code>air</code> = スキップ（配置しない）
+                </div>
+                <div class="unknown-list" id="unknownList"></div>
+            </div>
+            <div class="unknown-modal-footer">
+                <button class="btn-secondary" id="unknownModalSkip">デフォルトで続行</button>
+                <button class="btn-primary" id="unknownModalApply">適用して変換</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-header">
+            <span class="preview-title">ボクセルプレビュー</span>
+            <span class="preview-info" id="previewInfo"></span>
+            <button class="preview-close" id="previewClose">&times;</button>
+        </div>
+        <div class="preview-canvas-container">
+            <canvas id="previewCanvas"></canvas>
+            <div class="preview-hint">ドラッグで回転 / スクロールでズーム</div>
+            <div class="preview-controls">
+                <button id="resetViewBtn">リセット</button>
+                <button id="toggleWireBtn">ワイヤー表示</button>
+            </div>
         </div>
     </div>
 
@@ -651,6 +1083,8 @@
         let userMappings = {};
         let currentFileName = '';
         let is3DModel = false;
+        let userResolutionLocked = false;
+        let currentGeometry = null;
 
         // ========== DOM ==========
         const dropZone = document.getElementById('dropZone');
@@ -659,6 +1093,47 @@
         const convertBtn = document.getElementById('convertBtn');
         const downloadArea = document.getElementById('downloadArea');
         const logPanel = document.getElementById('logPanel');
+        const resolutionInput = document.getElementById('resolution');
+        const settings3D = document.getElementById('settings3D');
+        const unknownModal = document.getElementById('unknownModal');
+        const unknownModalClose = document.getElementById('unknownModalClose');
+        const unknownModalSkip = document.getElementById('unknownModalSkip');
+        const unknownModalApply = document.getElementById('unknownModalApply');
+
+        // Track if the user manually edited the resolution so we don't overwrite it on the next file
+        resolutionInput.addEventListener('input', () => { userResolutionLocked = true; });
+
+        // Unknown Modal Controls
+        function showUnknownModal() {
+            unknownModal.classList.add('active');
+        }
+        function hideUnknownModal() {
+            unknownModal.classList.remove('active');
+        }
+        unknownModalClose.addEventListener('click', hideUnknownModal);
+        unknownModalSkip.addEventListener('click', () => {
+            hideUnknownModal();
+            // Use defaults and proceed
+            collectMappings();
+            log('デフォルト変換で続行します');
+        });
+        unknownModalApply.addEventListener('click', () => {
+            hideUnknownModal();
+            collectMappings();
+            doConvert();
+        });
+        unknownModal.addEventListener('click', (e) => {
+            if (e.target === unknownModal) hideUnknownModal();
+        });
+
+        // Toggle 3D settings visibility
+        function update3DSettingsVisibility() {
+            if (is3DModel) {
+                settings3D.classList.add('visible');
+            } else {
+                settings3D.classList.remove('visible');
+            }
+        }
 
         // ========== Utils ==========
         function log(msg, type = '') {
@@ -734,7 +1209,7 @@
 
             input.addEventListener('input', () => {
                 const val = input.value.toLowerCase();
-                if (val.length < 2) {
+                if (val.length < 1) {
                     list.classList.remove('visible');
                     return;
                 }
@@ -791,7 +1266,9 @@
         }
 
         // ========== 3D Model Loader ==========
-        function load3DModel(file) {
+        let pendingMtlContent = null; // MTLファイルの内容を一時保存
+
+        function load3DModel(file, mtlContent = null) {
             return new Promise((resolve, reject) => {
                 const ext = file.name.split('.').pop().toLowerCase();
                 const reader = new FileReader();
@@ -801,18 +1278,62 @@
                         let geometry = null;
 
                         if (ext === 'obj') {
-                            const loader = new THREE.OBJLoader();
-                            const obj = loader.parse(e.target.result);
+                            const objLoader = new THREE.OBJLoader();
+
+                            // MTLがある場合はマテリアルを適用
+                            if (mtlContent || pendingMtlContent) {
+                                const mtlText = mtlContent || pendingMtlContent;
+
+                                // MTLファイルの内容をチェック
+                                const hasDirectColor = /^\s*Kd\s+[\d.]+\s+[\d.]+\s+[\d.]+/m.test(mtlText);
+                                const hasTexture = /^\s*map_Kd\s+/m.test(mtlText);
+
+                                if (hasTexture && !hasDirectColor) {
+                                    log('警告: MTLファイルはテクスチャを参照していますが、テクスチャファイルは読み込めません', 'warning');
+                                    log('色情報を取得するにはMTLファイルにKd（ディフューズカラー）を追加してください', 'warning');
+                                }
+
+                                const mtlLoader = new THREE.MTLLoader();
+                                const materials = mtlLoader.parse(mtlText);
+                                materials.preload();
+                                objLoader.setMaterials(materials);
+
+                                if (hasDirectColor) {
+                                    log('MTLマテリアルを適用しました', 'success');
+                                }
+                                pendingMtlContent = null; // 使用後クリア
+                            }
+
+                            const obj = objLoader.parse(e.target.result);
                             geometry = mergeGeometries(obj);
                         } else if (ext === 'stl') {
                             const loader = new THREE.STLLoader();
                             geometry = loader.parse(e.target.result);
+                        } else if (ext === 'ply') {
+                            const loader = new THREE.PLYLoader();
+                            geometry = loader.parse(e.target.result);
+                            // PLYは頂点カラーを持つことが多い
+                            if (geometry.getAttribute('color')) {
+                                log('PLY頂点カラーを検出しました', 'success');
+                            }
+                        } else {
+                            reject(new Error(`未対応のファイル形式: ${ext}`));
+                            return;
+                        }
+
+                        if (!geometry) {
+                            reject(new Error('ジオメトリの読み込みに失敗しました'));
+                            return;
                         }
 
                         resolve(geometry);
                     } catch (err) {
                         reject(err);
                     }
+                };
+
+                reader.onerror = () => {
+                    reject(new Error('ファイルの読み込みに失敗しました'));
                 };
 
                 if (ext === 'obj') {
@@ -825,30 +1346,280 @@
 
         function mergeGeometries(object) {
             const geometries = [];
+            let materialCount = 0;
+            let meshCount = 0;
+            const detectedColors = new Set();
+
             object.traverse((child) => {
                 if (child.isMesh && child.geometry) {
+                    meshCount++;
                     const geom = child.geometry.clone();
                     child.updateWorldMatrix(true, false);
                     geom.applyMatrix4(child.matrixWorld);
+
+                    // マテリアルから色を取得してジオメトリに頂点カラーとして追加
+                    const pos = geom.getAttribute('position');
+                    if (!geom.getAttribute('color') && pos) {
+                        const colors = [];
+
+                        // マテリアルが配列の場合（複数マテリアル）
+                        if (Array.isArray(child.material)) {
+                            // グループ情報を使って各頂点に色を割り当て
+                            const groups = geom.groups;
+                            if (groups && groups.length > 0) {
+                                // 頂点ごとの色を初期化
+                                for (let i = 0; i < pos.count; i++) {
+                                    colors.push(0.5, 0.5, 0.5);
+                                }
+                                // グループごとに色を設定
+                                for (const group of groups) {
+                                    const mat = child.material[group.materialIndex];
+                                    if (mat && mat.color) {
+                                        const mc = mat.color;
+                                        materialCount++;
+                                        const r255 = Math.round(mc.r * 255);
+                                        const g255 = Math.round(mc.g * 255);
+                                        const b255 = Math.round(mc.b * 255);
+                                        detectedColors.add(`RGB(${r255},${g255},${b255})`);
+                                        for (let i = group.start; i < group.start + group.count; i++) {
+                                            colors[i * 3] = mc.r;
+                                            colors[i * 3 + 1] = mc.g;
+                                            colors[i * 3 + 2] = mc.b;
+                                        }
+                                    }
+                                }
+                                geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                            } else {
+                                // グループがない場合は最初のマテリアルを使用
+                                const mat = child.material[0];
+                                if (mat && mat.color) {
+                                    const mc = mat.color;
+                                    const isDefaultWhite = (mc.r === 1 && mc.g === 1 && mc.b === 1);
+                                    if (!isDefaultWhite) {
+                                        const r255 = Math.round(mc.r * 255);
+                                        const g255 = Math.round(mc.g * 255);
+                                        const b255 = Math.round(mc.b * 255);
+                                        detectedColors.add(`RGB(${r255},${g255},${b255})`);
+                                        for (let i = 0; i < pos.count; i++) {
+                                            colors.push(mc.r, mc.g, mc.b);
+                                        }
+                                        geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                                    }
+                                }
+                            }
+                        } else if (child.material && child.material.color) {
+                            // 単一マテリアル
+                            const mc = child.material.color;
+                            const isDefaultWhite = (mc.r === 1 && mc.g === 1 && mc.b === 1);
+                            if (!isDefaultWhite) {
+                                materialCount++;
+                                const r255 = Math.round(mc.r * 255);
+                                const g255 = Math.round(mc.g * 255);
+                                const b255 = Math.round(mc.b * 255);
+                                detectedColors.add(`RGB(${r255},${g255},${b255})`);
+                                for (let i = 0; i < pos.count; i++) {
+                                    colors.push(mc.r, mc.g, mc.b);
+                                }
+                                geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                            }
+                        }
+                    }
                     geometries.push(geom);
                 }
             });
+
+            log(`メッシュ数: ${meshCount}, マテリアル適用数: ${materialCount}`);
+            if (detectedColors.size > 0) {
+                log(`検出された色: ${Array.from(detectedColors).join(', ')}`);
+            }
 
             if (geometries.length === 0) throw new Error('No geometry found');
             if (geometries.length === 1) return geometries[0];
 
             const merged = new THREE.BufferGeometry();
             const positions = [];
+            const colors = [];
+            let hasAnyColors = false;
+
+            // まず色を持つジオメトリがあるか確認
+            for (const geom of geometries) {
+                if (geom.getAttribute('color')) {
+                    hasAnyColors = true;
+                    break;
+                }
+            }
+
             for (const geom of geometries) {
                 const pos = geom.getAttribute('position');
+                const col = geom.getAttribute('color');
                 if (pos) {
                     for (let i = 0; i < pos.count; i++) {
                         positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+                        if (hasAnyColors) {
+                            if (col) {
+                                colors.push(col.getX(i), col.getY(i), col.getZ(i));
+                            } else {
+                                colors.push(0.5, 0.5, 0.5); // 色がないジオメトリはグレー
+                            }
+                        }
                     }
                 }
             }
             merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            if (hasAnyColors && colors.length > 0) {
+                merged.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            }
             return merged;
+        }
+
+        // ========== Auto Resolution ==========
+        function calculateOptimalResolution(geometry, maxVoxels = 100000) {
+            geometry.computeBoundingBox();
+            const bbox = geometry.boundingBox;
+            const sizeX = Math.max(bbox.max.x - bbox.min.x, 0.001);
+            const sizeY = Math.max(bbox.max.y - bbox.min.y, 0.001);
+            const sizeZ = Math.max(bbox.max.z - bbox.min.z, 0.001);
+            const maxDim = Math.max(sizeX, sizeY, sizeZ);
+            const volume = Math.max(sizeX * sizeY * sizeZ, 0.000001);
+
+            // Calculate resolution to achieve approximately maxVoxels
+            // volume / resolution^3 ≈ maxVoxels
+            // resolution ≈ (volume / maxVoxels)^(1/3)
+            let optimalRes = Math.pow(volume / maxVoxels, 1 / 3);
+
+            // Ensure reasonable bounds: min 0.01, max = maxDim/5 (at least 5 voxels per axis)
+            optimalRes = Math.max(0.01, Math.min(optimalRes, maxDim / 5));
+
+            // Round to 2 decimal places
+            optimalRes = Math.round(optimalRes * 100) / 100;
+            if (optimalRes < 0.01) optimalRes = 0.01;
+
+            return {
+                resolution: optimalRes,
+                modelSize: { x: sizeX.toFixed(2), y: sizeY.toFixed(2), z: sizeZ.toFixed(2) },
+                maxDim: maxDim.toFixed(2),
+                estimatedVoxels: Math.floor(volume / Math.pow(optimalRes, 3))
+            };
+        }
+
+        // ========== Color to Block Mapping ==========
+        // ウール、コンクリート、テラコッタ、その他のブロックを含む拡張カラーパレット
+        const BLOCK_COLORS = [
+            // ウール (柔らかい色)
+            { name: 'wool:white', r: 234, g: 236, b: 237 },
+            { name: 'wool:orange', r: 241, g: 118, b: 20 },
+            { name: 'wool:magenta', r: 190, g: 69, b: 180 },
+            { name: 'wool:cyan', r: 22, g: 156, b: 157 },
+            { name: 'wool:yellow', r: 254, g: 199, b: 31 },
+            { name: 'wool:green', r: 112, g: 185, b: 26 },
+            { name: 'wool:pink', r: 238, g: 141, b: 172 },
+            { name: 'wool:grey', r: 63, g: 68, b: 72 },
+            { name: 'wool:dark_grey', r: 142, g: 142, b: 135 },
+            { name: 'wool:violet', r: 122, g: 42, b: 173 },
+            { name: 'wool:blue', r: 53, g: 57, b: 157 },
+            { name: 'wool:brown', r: 114, g: 72, b: 41 },
+            { name: 'wool:dark_green', r: 84, g: 109, b: 28 },
+            { name: 'wool:red', r: 161, g: 39, b: 35 },
+            { name: 'wool:black', r: 21, g: 21, b: 26 },
+
+            // コンクリート (鮮やかな色)
+            { name: 'concrete:concrete_white', r: 207, g: 213, b: 214 },
+            { name: 'concrete:concrete_orange', r: 224, g: 97, b: 1 },
+            { name: 'concrete:concrete_magenta', r: 170, g: 48, b: 159 },
+            { name: 'concrete:concrete_cyan', r: 21, g: 119, b: 136 },
+            { name: 'concrete:concrete_yellow', r: 241, g: 175, b: 21 },
+            { name: 'concrete:concrete_green', r: 94, g: 169, b: 25 },
+            { name: 'concrete:concrete_pink', r: 214, g: 101, b: 143 },
+            { name: 'concrete:concrete_grey', r: 55, g: 58, b: 62 },
+            { name: 'concrete:concrete_dark_grey', r: 125, g: 125, b: 115 },
+            { name: 'concrete:concrete_violet', r: 100, g: 32, b: 156 },
+            { name: 'concrete:concrete_blue', r: 45, g: 47, b: 143 },
+            { name: 'concrete:concrete_brown', r: 96, g: 60, b: 32 },
+            { name: 'concrete:concrete_dark_green', r: 73, g: 91, b: 36 },
+            { name: 'concrete:concrete_red', r: 142, g: 33, b: 33 },
+            { name: 'concrete:concrete_black', r: 8, g: 10, b: 15 },
+
+            // テラコッタ (落ち着いた色)
+            { name: 'hardened_clay:white', r: 210, g: 178, b: 161 },
+            { name: 'hardened_clay:orange', r: 162, g: 84, b: 38 },
+            { name: 'hardened_clay:magenta', r: 150, g: 88, b: 109 },
+            { name: 'hardened_clay:cyan', r: 87, g: 91, b: 91 },
+            { name: 'hardened_clay:yellow', r: 186, g: 133, b: 35 },
+            { name: 'hardened_clay:green', r: 104, g: 118, b: 53 },
+            { name: 'hardened_clay:pink', r: 162, g: 78, b: 79 },
+            { name: 'hardened_clay:grey', r: 58, g: 42, b: 36 },
+            { name: 'hardened_clay:dark_grey', r: 135, g: 107, b: 98 },
+            { name: 'hardened_clay:violet', r: 118, g: 70, b: 86 },
+            { name: 'hardened_clay:blue', r: 74, g: 60, b: 91 },
+            { name: 'hardened_clay:brown', r: 77, g: 51, b: 36 },
+            { name: 'hardened_clay:dark_green', r: 76, g: 83, b: 42 },
+            { name: 'hardened_clay:red', r: 143, g: 61, b: 47 },
+            { name: 'hardened_clay:black', r: 37, g: 23, b: 17 },
+
+            // 追加のブロック
+            { name: 'default:stone', r: 125, g: 125, b: 125 },
+            { name: 'default:cobble', r: 100, g: 100, b: 100 },
+            { name: 'default:dirt', r: 134, g: 96, b: 67 },
+            { name: 'default:sand', r: 219, g: 211, b: 160 },
+            { name: 'default:gravel', r: 136, g: 126, b: 126 },
+            { name: 'default:clay', r: 159, g: 164, b: 177 },
+            { name: 'default:sandstone', r: 218, g: 210, b: 158 },
+            { name: 'default:brick', r: 150, g: 97, b: 83 },
+            { name: 'default:obsidian', r: 15, g: 11, b: 25 },
+            { name: 'default:goldblock', r: 249, g: 236, b: 79 },
+            { name: 'default:steelblock', r: 230, g: 230, b: 230 },
+            { name: 'default:copperblock', r: 192, g: 108, b: 80 },
+            { name: 'default:wood', r: 162, g: 131, b: 79 },
+            { name: 'default:tree', r: 111, g: 91, b: 54 },
+            { name: 'default:leaves', r: 58, g: 93, b: 40 },
+            { name: 'default:ice', r: 175, g: 215, b: 253 },
+            { name: 'default:snowblock', r: 249, g: 254, b: 254 },
+            { name: 'default:water_source', r: 47, g: 67, b: 244 },
+            { name: 'default:lava_source', r: 252, g: 157, b: 35 },
+
+            // 追加のブロック
+            { name: 'default:quartz_block', r: 235, g: 230, b: 220 },  // クォーツ
+            { name: 'default:emeraldblock', r: 50, g: 200, b: 100 },  // エメラルド
+            { name: 'default:rubyblock', r: 200, g: 50, b: 80 },  // ルビー
+            { name: 'default:diamondblock', r: 100, g: 220, b: 255 },  // ダイヤモンド
+            { name: 'amethyst_geode:amethyst_block', r: 150, g: 100, b: 200 },  // アメジスト
+            { name: 'charoite:block', r: 140, g: 80, b: 180 },  // チャロアイト
+
+            // 追加のウール色（スライムブロック系）
+            { name: 'bluestone_stickyblocks:slimeblock', r: 120, g: 200, b: 80 },  // スライムグリーン
+
+            // 桜関連
+            { name: 'pink_biome:cherry_blossom_leaves', r: 255, g: 180, b: 200 },  // 桜の葉
+            { name: 'pink_biome:cherry_blossom_wood', r: 180, g: 130, b: 120 },  // 桜の木
+        ];
+
+        function colorDistance(r1, g1, b1, r2, g2, b2) {
+            // CIE76に近似した色差計算（人間の目に近い）
+            const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+            // 赤の重み付けを調整（人間の目は緑に敏感、青に鈍感）
+            const rMean = (r1 + r2) / 2;
+            const weightR = rMean < 128 ? 2 : 3;
+            const weightG = 4;
+            const weightB = rMean < 128 ? 3 : 2;
+            return Math.sqrt(weightR * dr * dr + weightG * dg * dg + weightB * db * db);
+        }
+
+        function findNearestBlock(r, g, b) {
+            let minDist = Infinity;
+            let nearest = BLOCK_COLORS[0].name;
+            for (const block of BLOCK_COLORS) {
+                const dist = colorDistance(r, g, b, block.r, block.g, block.b);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = block.name;
+                }
+            }
+            return nearest;
+        }
+
+        // 後方互換性のため
+        function findNearestWool(r, g, b) {
+            return findNearestBlock(r, g, b);
         }
 
         // ========== Voxelization ==========
@@ -864,33 +1635,68 @@
             log(`グリッドサイズ: ${sizeX} x ${sizeY} x ${sizeZ}`);
 
             const positions = geometry.getAttribute('position');
+            const colors = geometry.getAttribute('color'); // 頂点カラーを取得
+            const hasColors = colors !== null && colors !== undefined;
+            if (hasColors) {
+                log('頂点カラーを検出 - 色に応じてウールブロックを割り当てます', 'success');
+                // サンプルとして最初の頂点の色をログ出力
+                if (colors.count > 0) {
+                    const sampleR = Math.round(colors.getX(0) * 255);
+                    const sampleG = Math.round(colors.getY(0) * 255);
+                    const sampleB = Math.round(colors.getZ(0) * 255);
+                    log(`サンプル色: RGB(${sampleR}, ${sampleG}, ${sampleB})`);
+                }
+            } else {
+                log('頂点カラーなし - 単一ブロックIDを使用します');
+                // デバッグ: 利用可能な属性を表示
+                const attrs = Object.keys(geometry.attributes);
+                log(`利用可能な属性: ${attrs.join(', ') || 'position のみ'}`);
+            }
+
             const triangles = [];
             for (let i = 0; i < positions.count; i += 3) {
-                triangles.push([
-                    new THREE.Vector3(positions.getX(i), positions.getY(i), positions.getZ(i)),
-                    new THREE.Vector3(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1)),
-                    new THREE.Vector3(positions.getX(i + 2), positions.getY(i + 2), positions.getZ(i + 2))
-                ]);
+                const tri = {
+                    v0: new THREE.Vector3(positions.getX(i), positions.getY(i), positions.getZ(i)),
+                    v1: new THREE.Vector3(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1)),
+                    v2: new THREE.Vector3(positions.getX(i + 2), positions.getY(i + 2), positions.getZ(i + 2))
+                };
+                if (hasColors) {
+                    // 三角形の平均色を計算
+                    tri.r = Math.round(((colors.getX(i) + colors.getX(i + 1) + colors.getX(i + 2)) / 3) * 255);
+                    tri.g = Math.round(((colors.getY(i) + colors.getY(i + 1) + colors.getY(i + 2)) / 3) * 255);
+                    tri.b = Math.round(((colors.getZ(i) + colors.getZ(i + 1) + colors.getZ(i + 2)) / 3) * 255);
+                }
+                triangles.push(tri);
             }
             log(`三角形数: ${triangles.length}`);
 
-            const voxels = new Set();
+            const voxels = new Map(); // key -> { x, y, z, blockId }
             for (const tri of triangles) {
-                const samples = sampleTriangle(tri[0], tri[1], tri[2], resolution / 2);
+                const samples = sampleTriangle(tri.v0, tri.v1, tri.v2, resolution / 2);
+                const blockId = hasColors ? findNearestWool(tri.r, tri.g, tri.b) : null;
                 for (const p of samples) {
                     const vx = Math.floor((p.x - minX) / resolution);
                     const vy = Math.floor((p.y - minY) / resolution);
                     const vz = Math.floor((p.z - minZ) / resolution);
-                    voxels.add(`${vx},${vy},${vz}`);
+                    const key = `${vx},${vy},${vz}`;
+                    if (!voxels.has(key)) {
+                        voxels.set(key, { x: vx, y: vy, z: vz, blockId: blockId });
+                    }
                 }
             }
 
             const result = [];
-            for (const key of voxels) {
-                const [x, y, z] = key.split(',').map(Number);
-                result.push([x, y, z]);
+            for (const voxel of voxels.values()) {
+                result.push([voxel.x, voxel.y, voxel.z, voxel.blockId]);
             }
             log(`ボクセル数: ${result.length}`, 'success');
+            if (hasColors) {
+                const colorStats = {};
+                for (const v of result) {
+                    if (v[3]) colorStats[v[3]] = (colorStats[v[3]] || 0) + 1;
+                }
+                log(`使用ブロック: ${Object.keys(colorStats).join(', ')}`);
+            }
             return result;
         }
 
@@ -900,7 +1706,8 @@
             const edge2 = new THREE.Vector3().subVectors(v2, v0);
             const cross = new THREE.Vector3().crossVectors(edge1, edge2);
             const area = cross.length() / 2;
-            const numSamples = Math.max(1, Math.ceil(area / (step * step)));
+            // Cap samples at 100 to prevent memory explosion on large triangles
+            const numSamples = Math.min(100, Math.max(1, Math.ceil(area / (step * step))));
             for (let i = 0; i <= numSamples; i++) {
                 for (let j = 0; j <= numSamples - i; j++) {
                     const u = i / numSamples, v = j / numSamples, w = 1 - u - v;
@@ -914,16 +1721,18 @@
             return points;
         }
 
-        function generate3DModelCommands(voxels, blockId, scale = 1) {
+        function generate3DModelCommands(voxels, defaultBlockId, scale = 1) {
             const commands = [];
             let pos = [0, 0, 0];
+            let lastBlockId = null;
             const sorted = [...voxels].sort((a, b) => {
                 if (a[1] !== b[1]) return a[1] - b[1];
                 if (a[2] !== b[2]) return a[2] - b[2];
                 return a[0] - b[0];
             });
             for (let i = 0; i < sorted.length; i++) {
-                const [x, y, z] = sorted[i];
+                const [x, y, z, colorBlockId] = sorted[i];
+                const blockId = colorBlockId || defaultBlockId;
                 const axes = ['x', 'y', 'z'];
                 const target = [x, y, z];
                 for (let j = 0; j < 3; j++) {
@@ -991,13 +1800,87 @@
         }
 
         function createLink(commands, fileName) {
-            const blob = new Blob([commands.join('\n')], { type: 'text/plain' });
+            const commandText = commands.join('\n');
+            const blob = new Blob([commandText], { type: 'text/plain' });
+
+            // コンテナを作成
+            const item = document.createElement('div');
+            item.className = 'download-item';
+
+            // ヘッダー（ファイル名とコマンド数）
+            const header = document.createElement('div');
+            header.className = 'download-item-header';
+            header.textContent = `${fileName} (${commands.length}コマンド)`;
+            item.appendChild(header);
+
+            // ボタンコンテナ
+            const buttons = document.createElement('div');
+            buttons.className = 'download-buttons';
+
+            // ダウンロードリンク
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
             link.className = 'download-link';
-            link.textContent = `${fileName} (${commands.length})`;
-            downloadArea.appendChild(link);
+            link.textContent = 'ダウンロード';
+            buttons.appendChild(link);
+
+            // コピーボタン
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = 'コピー';
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(commandText);
+                    copyBtn.textContent = 'コピー完了！';
+                    copyBtn.classList.add('copied');
+                    log(`コピーしました: ${fileName}`, 'success');
+                    setTimeout(() => {
+                        copyBtn.textContent = 'コピー';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    log(`コピー失敗: ${err.message}`, 'error');
+                }
+            });
+            buttons.appendChild(copyBtn);
+
+            item.appendChild(buttons);
+
+            // コマンドプレビュー
+            const preview = document.createElement('div');
+            preview.className = 'command-preview';
+
+            const previewHeader = document.createElement('div');
+            previewHeader.className = 'command-preview-header';
+            previewHeader.innerHTML = `
+                <span class="command-preview-title">コマンドプレビュー (${commands.length}行)</span>
+                <span class="command-preview-toggle">▼ 展開</span>
+            `;
+
+            const previewContent = document.createElement('div');
+            previewContent.className = 'command-preview-content collapsed';
+
+            // コマンドを構文ハイライト付きで表示（最大500行）
+            const displayCommands = commands.slice(0, 500);
+            previewContent.innerHTML = displayCommands.map(cmd => {
+                let highlighted = cmd
+                    .replace(/(\/shift)/g, '<span class="cmd-shift">$1</span>')
+                    .replace(/(\/s\s)/g, '<span class="cmd-set">$1</span>')
+                    .replace(/(\/param2\s+\d+)/g, '<span class="cmd-param">$1</span>');
+                return `<span class="cmd-line">${highlighted}</span>`;
+            }).join('') + (commands.length > 500 ? `<span class="cmd-line" style="color:#888">... 他${commands.length - 500}行</span>` : '');
+
+            previewHeader.addEventListener('click', () => {
+                const isCollapsed = previewContent.classList.toggle('collapsed');
+                previewHeader.querySelector('.command-preview-toggle').textContent = isCollapsed ? '▼ 展開' : '▲ 折りたたむ';
+            });
+
+            preview.appendChild(previewHeader);
+            preview.appendChild(previewContent);
+            item.appendChild(preview);
+
+            downloadArea.appendChild(item);
             log(`準備完了: ${fileName}`, 'success');
         }
 
@@ -1056,26 +1939,87 @@
         }
 
         // ========== Process ==========
+        async function processFiles(files) {
+            // 複数ファイルの場合（OBJ+MTL）を処理
+            const fileList = Array.from(files);
+            let objFile = null;
+            let mtlFile = null;
+            let otherFile = null;
+
+            for (const file of fileList) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (ext === 'obj') objFile = file;
+                else if (ext === 'mtl') mtlFile = file;
+                else otherFile = file;
+            }
+
+            // MTLファイルがある場合は先に読み込む
+            if (mtlFile) {
+                log(`MTLファイル読み込み: ${mtlFile.name}`);
+                const mtlText = await mtlFile.text();
+                pendingMtlContent = mtlText;
+            }
+
+            // メインファイルを処理
+            const mainFile = objFile || otherFile || fileList[0];
+            if (mainFile) {
+                await processFile(mainFile);
+            }
+        }
+
         async function processFile(file) {
             try {
+                userResolutionLocked = false;
+                currentGeometry = null;
                 currentFileName = file.name;
                 const ext = file.name.split('.').pop().toLowerCase();
                 log(`読み込み: ${file.name}`);
                 updateStatus('fileName', file.name);
                 setProgress(0);
 
-                if (['obj', 'stl'].includes(ext)) {
+                if (['obj', 'stl', 'ply'].includes(ext)) {
                     is3DModel = true;
                     log('3Dモデルを読み込み中...', 'success');
                     const geometry = await load3DModel(file);
-                    const resolution = parseFloat(document.getElementById('resolution').value) || 0.5;
+                    currentGeometry = geometry;
+
+                    // Calculate optimal resolution based on model size
+                    const autoRes = calculateOptimalResolution(geometry);
+                    log(`モデルサイズ: ${autoRes.modelSize.x} x ${autoRes.modelSize.y} x ${autoRes.modelSize.z}`);
+                    log(`推奨解像度: ${autoRes.resolution} (推定ボクセル数: ${autoRes.estimatedVoxels.toLocaleString()})`);
+
+                    const resInput = resolutionInput;
+                    if (!userResolutionLocked) {
+                        // Refresh to the auto value for each new file unless the user explicitly typed a value
+                        resInput.value = autoRes.resolution;
+                    }
+
+                    const userRes = parseFloat(resInput.value);
+                    let resolution = autoRes.resolution;
+                    if (userResolutionLocked && userRes && userRes > 0) {
+                        const bbox = geometry.boundingBox;
+                        const estVoxels = ((bbox.max.x - bbox.min.x) / userRes) *
+                            ((bbox.max.y - bbox.min.y) / userRes) *
+                            ((bbox.max.z - bbox.min.z) / userRes);
+                        if (estVoxels > 500000) {
+                            log(`警告: ユーザー設定の解像度 ${userRes} だと約${Math.floor(estVoxels).toLocaleString()}ボクセルになります`, 'warning');
+                            log(`自動調整された解像度 ${autoRes.resolution} を使用します`, 'warning');
+                        } else {
+                            resolution = userRes;
+                        }
+                    }
+
+                    // Update UI with actual resolution used for this file
+                    resInput.value = resolution;
+
                     current3DVoxels = voxelizeMesh(geometry, resolution);
                     currentBlocks = [];
                     updateStatus('blockCount', current3DVoxels.length);
-                    unknownList.innerHTML = '<div class="empty-state">3Dモデル: ブロックマッピング不要</div>';
+                    update3DSettingsVisibility();
                     convertBtn.disabled = false;
                 } else {
                     is3DModel = false;
+                    update3DSettingsVisibility();
                     const buf = await file.arrayBuffer();
                     let data;
                     try { data = pako.inflate(new Uint8Array(buf)); }
@@ -1085,9 +2029,12 @@
                     updateStatus('blockCount', currentBlocks.length);
                     log(`ブロック: ${currentBlocks.length}`, 'success');
                     unknownBlocks = findUnknown(currentBlocks);
-                    renderUnknownBlocks(unknownBlocks);
+
+                    // 未対応ブロックがあればモーダルを表示
                     if (Object.keys(unknownBlocks).length > 0) {
+                        renderUnknownBlocks(unknownBlocks);
                         log(`未対応: ${Object.keys(unknownBlocks).length}種類`, 'warning');
+                        showUnknownModal();
                     }
                     convertBtn.disabled = false;
                 }
@@ -1101,6 +2048,38 @@
             const scale = parseInt(document.getElementById('scale').value) || 1;
             let commands;
             if (is3DModel) {
+                if (!currentGeometry) {
+                    log('3Dモデルが読み込まれていません', 'error');
+                    return;
+                }
+
+                // Recalculate resolution at conversion time in case the user edited the value after load
+                const autoRes = calculateOptimalResolution(currentGeometry);
+                const resInput = resolutionInput;
+                if (!userResolutionLocked) {
+                    resInput.value = autoRes.resolution;
+                }
+
+                const userRes = parseFloat(resInput.value);
+                let resolution = autoRes.resolution;
+                if (userRes && userRes > 0) {
+                    if (!currentGeometry.boundingBox) currentGeometry.computeBoundingBox();
+                    const bbox = currentGeometry.boundingBox;
+                    const estVoxels = ((bbox.max.x - bbox.min.x) / userRes) *
+                        ((bbox.max.y - bbox.min.y) / userRes) *
+                        ((bbox.max.z - bbox.min.z) / userRes);
+                    if (estVoxels > 500000) {
+                        log(`警告: ユーザー設定の解像度 ${userRes} だと約${Math.floor(estVoxels).toLocaleString()}ボクセルになります`, 'warning');
+                        log(`自動調整された解像度 ${autoRes.resolution} を使用します`, 'warning');
+                    } else {
+                        resolution = userRes;
+                    }
+                }
+                resInput.value = resolution;
+
+                current3DVoxels = voxelizeMesh(currentGeometry, resolution);
+                updateStatus('blockCount', current3DVoxels.length);
+
                 const blockId = document.getElementById('blockId').value || 'default:stone';
                 commands = generate3DModelCommands(current3DVoxels, blockId, scale);
             } else {
@@ -1120,10 +2099,142 @@
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files.length > 0) {
+                processFiles(e.dataTransfer.files);
+            }
         });
-        fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length > 0) {
+                processFiles(e.target.files);
+            }
+        });
         convertBtn.addEventListener('click', doConvert);
+
+        // ========== 3D Preview ==========
+        const previewBtn = document.getElementById('previewBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewClose = document.getElementById('previewClose');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewInfo = document.getElementById('previewInfo');
+        const resetViewBtn = document.getElementById('resetViewBtn');
+        const toggleWireBtn = document.getElementById('toggleWireBtn');
+
+        let previewScene, previewCamera, previewRenderer, previewMesh;
+        let previewCtrl = { drag: false, lx: 0, ly: 0, rx: 0.5, ry: 0.5, zoom: 1 };
+        let wireMode = false, animId = null;
+
+        function initPreview() {
+            previewScene = new THREE.Scene();
+            previewScene.background = new THREE.Color(0x1a1a1a);
+            const c = previewCanvas.parentElement;
+            previewCamera = new THREE.PerspectiveCamera(60, c.clientWidth / c.clientHeight, 0.1, 10000);
+            previewCamera.position.set(0, 0, 100);
+            previewRenderer = new THREE.WebGLRenderer({ canvas: previewCanvas, antialias: true });
+            previewRenderer.setSize(c.clientWidth, c.clientHeight);
+            previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            previewScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const d1 = new THREE.DirectionalLight(0xffffff, 0.6); d1.position.set(1, 1, 1); previewScene.add(d1);
+            const d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1, -1, -1); previewScene.add(d2);
+        }
+
+        function createVoxels(vox, isNBT) {
+            if (previewMesh) { previewScene.remove(previewMesh); previewMesh.geometry?.dispose(); previewMesh.material?.dispose(); }
+            if (!vox.length) return;
+            let mnX = Infinity, mnY = Infinity, mnZ = Infinity, mxX = -Infinity, mxY = -Infinity, mxZ = -Infinity;
+            for (const v of vox) { const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; mnX = Math.min(mnX, x); mxX = Math.max(mxX, x); mnY = Math.min(mnY, y); mxY = Math.max(mxY, y); mnZ = Math.min(mnZ, z); mxZ = Math.max(mxZ, z); }
+            const cx = (mnX + mxX) / 2, cy = (mnY + mxY) / 2, cz = (mnZ + mxZ) / 2, sz = Math.max(mxX - mnX, mxY - mnY, mxZ - mnZ) + 1;
+            const geo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+            const mat = new THREE.MeshLambertMaterial({ color: 0x4a90d9, wireframe: wireMode });
+            const mesh = new THREE.InstancedMesh(geo, mat, vox.length);
+            const m = new THREE.Matrix4();
+            for (let i = 0; i < vox.length; i++) { const v = vox[i]; const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; m.setPosition(x - cx, y - cy, z - cz); mesh.setMatrixAt(i, m); }
+            mesh.instanceMatrix.needsUpdate = true;
+            previewScene.add(mesh); previewMesh = mesh;
+            previewCamera.position.set(0, 0, sz * 1.5); previewCamera.lookAt(0, 0, 0);
+            previewCtrl.zoom = 1; previewCtrl.rx = 0.5; previewCtrl.ry = 0.5;
+            previewInfo.textContent = `${vox.length.toLocaleString()} ボクセル | ${Math.ceil(mxX - mnX + 1)}x${Math.ceil(mxY - mnY + 1)}x${Math.ceil(mxZ - mnZ + 1)}`;
+        }
+
+        function renderLoop() {
+            if (!previewMesh) return;
+            previewMesh.rotation.x = previewCtrl.ry * Math.PI;
+            previewMesh.rotation.y = previewCtrl.rx * Math.PI;
+            previewRenderer.render(previewScene, previewCamera);
+            animId = requestAnimationFrame(renderLoop);
+        }
+
+        function openPreview() {
+            if (!previewScene) initPreview();
+            const vox = is3DModel ? current3DVoxels : currentBlocks;
+            if (!vox.length) { log('プレビューするデータがありません', 'error'); return; }
+            const maxVox = 100000;
+            let pv = vox.length > maxVox ? (log(`プレビューを${maxVox}に制限`, 'warning'), vox.slice(0, maxVox)) : vox;
+            createVoxels(pv, !is3DModel);
+            previewModal.classList.add('active');
+            const c = previewCanvas.parentElement;
+            previewRenderer.setSize(c.clientWidth, c.clientHeight);
+            previewCamera.aspect = c.clientWidth / c.clientHeight;
+            previewCamera.updateProjectionMatrix();
+            renderLoop();
+        }
+
+        function closePreview() {
+            previewModal.classList.remove('active');
+            if (animId) { cancelAnimationFrame(animId); animId = null; }
+        }
+
+        previewCanvas.addEventListener('mousedown', e => { previewCtrl.drag = true; previewCtrl.lx = e.clientX; previewCtrl.ly = e.clientY; });
+        previewCanvas.addEventListener('mousemove', e => {
+            if (!previewCtrl.drag) return;
+            previewCtrl.rx += (e.clientX - previewCtrl.lx) * 0.005;
+            previewCtrl.ry += (e.clientY - previewCtrl.ly) * 0.005;
+            previewCtrl.lx = e.clientX; previewCtrl.ly = e.clientY;
+        });
+        previewCanvas.addEventListener('mouseup', () => previewCtrl.drag = false);
+        previewCanvas.addEventListener('mouseleave', () => previewCtrl.drag = false);
+        previewCanvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+            previewCamera.position.z *= zoomFactor;
+            previewCamera.position.z = Math.max(1, Math.min(10000, previewCamera.position.z));
+        });
+
+        previewBtn.addEventListener('click', openPreview);
+        previewClose.addEventListener('click', closePreview);
+        resetViewBtn.addEventListener('click', () => {
+            previewCtrl.rx = 0.5;
+            previewCtrl.ry = 0.5;
+            if (previewMesh) {
+                const vox = is3DModel ? current3DVoxels : currentBlocks;
+                if (vox.length > 0) {
+                    let mxX = -Infinity, mxY = -Infinity, mxZ = -Infinity, mnX = Infinity, mnY = Infinity, mnZ = Infinity;
+                    for (const v of vox) {
+                        const [x, y, z] = is3DModel ? v : [v[0], v[1], v[2]];
+                        mnX = Math.min(mnX, x); mxX = Math.max(mxX, x);
+                        mnY = Math.min(mnY, y); mxY = Math.max(mxY, y);
+                        mnZ = Math.min(mnZ, z); mxZ = Math.max(mxZ, z);
+                    }
+                    const sz = Math.max(mxX - mnX, mxY - mnY, mxZ - mnZ) + 1;
+                    previewCamera.position.z = sz * 1.5;
+                } else {
+                    previewCamera.position.z = 100;
+                }
+            }
+        });
+        toggleWireBtn.addEventListener('click', () => { wireMode = !wireMode; if (previewMesh?.material) previewMesh.material.wireframe = wireMode; toggleWireBtn.textContent = wireMode ? 'ソリッド表示' : 'ワイヤー表示'; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && previewModal.classList.contains('active')) closePreview(); });
+
+        const origProcess = processFile;
+        processFile = async function (f) {
+            await origProcess(f);
+            previewBtn.disabled = !((is3DModel && current3DVoxels.length > 0) || (!is3DModel && currentBlocks.length > 0));
+        };
+
+        const origProcessFiles = processFiles;
+        processFiles = async function (files) {
+            await origProcessFiles(files);
+            previewBtn.disabled = !((is3DModel && current3DVoxels.length > 0) || (!is3DModel && currentBlocks.length > 0));
+        };
 
         log('準備完了');
     </script>

@@ -7,6 +7,10 @@
     <title>Schematic Converter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="multicraft_items.js"></script>
+    <!-- Three.js r125 for 3D model loading (older version that supports global namespace) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/STLLoader.js"></script>
     <style>
         * {
             margin: 0;
@@ -288,7 +292,27 @@
             margin-top: auto;
         }
 
+        .download-item {
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 8px;
+        }
+
+        .download-item-header {
+            font-size: 0.85rem;
+            color: #333;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
         .download-link {
+            flex: 1;
             display: block;
             background: #333;
             color: #fff;
@@ -296,7 +320,6 @@
             border-radius: 4px;
             text-decoration: none;
             font-size: 0.85rem;
-            margin-bottom: 6px;
             text-align: center;
         }
 
@@ -304,11 +327,150 @@
             background: #444;
         }
 
+        .copy-btn {
+            flex: 1;
+            background: #5a67d8;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #4c51bf;
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
         .empty-state {
             color: #999;
             font-size: 0.85rem;
             text-align: center;
             padding: 40px 20px;
+        }
+
+        /* Voxel Preview Modal */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+        }
+
+        .preview-modal.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .preview-title {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .preview-info {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .preview-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+
+        .preview-close:hover {
+            color: #f55;
+        }
+
+        .preview-canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .preview-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 16px;
+            border-radius: 8px;
+        }
+
+        .preview-controls button {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .preview-controls button:hover {
+            background: #444;
+        }
+
+        .preview-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #888;
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        .preview-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 8px;
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .preview-btn:hover {
+            background: #666;
+        }
+
+        .preview-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -320,8 +482,8 @@
             <h1>Schematic Converter</h1>
 
             <div class="drop-zone" id="dropZone">
-                <p>NBTファイルをドロップ<br>またはクリック</p>
-                <input type="file" id="fileInput" accept=".nbt,.schem">
+                <p>NBT/3Dモデルをドロップ<br>またはクリック</p>
+                <input type="file" id="fileInput" accept=".nbt,.schem,.obj,.stl">
             </div>
 
             <div class="setting-group">
@@ -331,6 +493,16 @@
             <div class="setting-group">
                 <label>スケール</label>
                 <input type="number" id="scale" value="1" min="1" max="10">
+            </div>
+
+            <h2 style="margin-top:16px;">3Dモデル設定</h2>
+            <div class="setting-group">
+                <label>解像度（小さいほど詳細）</label>
+                <input type="number" id="resolution" value="0.5" min="0.01" max="10" step="0.01">
+            </div>
+            <div class="setting-group">
+                <label>ブロックID</label>
+                <input type="text" id="blockId" value="default:stone" placeholder="default:stone">
             </div>
 
             <h2>状態</h2>
@@ -361,6 +533,7 @@
                 <div class="empty-state">ファイルを読み込むと表示されます</div>
             </div>
             <button class="convert-btn" id="convertBtn" disabled>変換開始</button>
+            <button class="preview-btn" id="previewBtn" disabled>3Dプレビュー</button>
         </div>
 
         <!-- Right Panel -->
@@ -368,6 +541,23 @@
             <h2>ログ</h2>
             <div class="log-panel" id="logPanel"></div>
             <div class="download-area" id="downloadArea"></div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-header">
+            <span class="preview-title">ボクセルプレビュー</span>
+            <span class="preview-info" id="previewInfo"></span>
+            <button class="preview-close" id="previewClose">&times;</button>
+        </div>
+        <div class="preview-canvas-container">
+            <canvas id="previewCanvas"></canvas>
+            <div class="preview-hint">ドラッグで回転 / スクロールでズーム</div>
+            <div class="preview-controls">
+                <button id="resetViewBtn">リセット</button>
+                <button id="toggleWireBtn">ワイヤー表示</button>
+            </div>
         </div>
     </div>
 
@@ -632,9 +822,13 @@
 
         // ========== State ==========
         let currentBlocks = [];
+        let current3DVoxels = [];
         let unknownBlocks = {};
         let userMappings = {};
         let currentFileName = '';
+        let is3DModel = false;
+        let userResolutionLocked = false;
+        let currentGeometry = null;
 
         // ========== DOM ==========
         const dropZone = document.getElementById('dropZone');
@@ -643,6 +837,10 @@
         const convertBtn = document.getElementById('convertBtn');
         const downloadArea = document.getElementById('downloadArea');
         const logPanel = document.getElementById('logPanel');
+        const resolutionInput = document.getElementById('resolution');
+
+        // Track if the user manually edited the resolution so we don't overwrite it on the next file
+        resolutionInput.addEventListener('input', () => { userResolutionLocked = true; });
 
         // ========== Utils ==========
         function log(msg, type = '') {
@@ -718,7 +916,7 @@
 
             input.addEventListener('input', () => {
                 const val = input.value.toLowerCase();
-                if (val.length < 2) {
+                if (val.length < 1) {
                     list.classList.remove('visible');
                     return;
                 }
@@ -774,6 +972,198 @@
             return blocks;
         }
 
+        // ========== 3D Model Loader ==========
+        function load3DModel(file) {
+            return new Promise((resolve, reject) => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    try {
+                        let geometry = null;
+
+                        if (ext === 'obj') {
+                            const loader = new THREE.OBJLoader();
+                            const obj = loader.parse(e.target.result);
+                            geometry = mergeGeometries(obj);
+                        } else if (ext === 'stl') {
+                            const loader = new THREE.STLLoader();
+                            geometry = loader.parse(e.target.result);
+                        } else {
+                            reject(new Error(`未対応のファイル形式: ${ext}`));
+                            return;
+                        }
+
+                        if (!geometry) {
+                            reject(new Error('ジオメトリの読み込みに失敗しました'));
+                            return;
+                        }
+
+                        resolve(geometry);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+
+                reader.onerror = () => {
+                    reject(new Error('ファイルの読み込みに失敗しました'));
+                };
+
+                if (ext === 'obj') {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
+            });
+        }
+
+        function mergeGeometries(object) {
+            const geometries = [];
+            object.traverse((child) => {
+                if (child.isMesh && child.geometry) {
+                    const geom = child.geometry.clone();
+                    child.updateWorldMatrix(true, false);
+                    geom.applyMatrix4(child.matrixWorld);
+                    geometries.push(geom);
+                }
+            });
+
+            if (geometries.length === 0) throw new Error('No geometry found');
+            if (geometries.length === 1) return geometries[0];
+
+            const merged = new THREE.BufferGeometry();
+            const positions = [];
+            for (const geom of geometries) {
+                const pos = geom.getAttribute('position');
+                if (pos) {
+                    for (let i = 0; i < pos.count; i++) {
+                        positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+                    }
+                }
+            }
+            merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            return merged;
+        }
+
+        // ========== Auto Resolution ==========
+        function calculateOptimalResolution(geometry, maxVoxels = 100000) {
+            geometry.computeBoundingBox();
+            const bbox = geometry.boundingBox;
+            const sizeX = Math.max(bbox.max.x - bbox.min.x, 0.001);
+            const sizeY = Math.max(bbox.max.y - bbox.min.y, 0.001);
+            const sizeZ = Math.max(bbox.max.z - bbox.min.z, 0.001);
+            const maxDim = Math.max(sizeX, sizeY, sizeZ);
+            const volume = Math.max(sizeX * sizeY * sizeZ, 0.000001);
+
+            // Calculate resolution to achieve approximately maxVoxels
+            // volume / resolution^3 ≈ maxVoxels
+            // resolution ≈ (volume / maxVoxels)^(1/3)
+            let optimalRes = Math.pow(volume / maxVoxels, 1 / 3);
+
+            // Ensure reasonable bounds: min 0.01, max = maxDim/5 (at least 5 voxels per axis)
+            optimalRes = Math.max(0.01, Math.min(optimalRes, maxDim / 5));
+
+            // Round to 2 decimal places
+            optimalRes = Math.round(optimalRes * 100) / 100;
+            if (optimalRes < 0.01) optimalRes = 0.01;
+
+            return {
+                resolution: optimalRes,
+                modelSize: { x: sizeX.toFixed(2), y: sizeY.toFixed(2), z: sizeZ.toFixed(2) },
+                maxDim: maxDim.toFixed(2),
+                estimatedVoxels: Math.floor(volume / Math.pow(optimalRes, 3))
+            };
+        }
+
+        // ========== Voxelization ==========
+        function voxelizeMesh(geometry, resolution) {
+            log(`ボクセル化中 (解像度: ${resolution})...`);
+            geometry.computeBoundingBox();
+            const bbox = geometry.boundingBox;
+            const minX = bbox.min.x, minY = bbox.min.y, minZ = bbox.min.z;
+            const maxX = bbox.max.x, maxY = bbox.max.y, maxZ = bbox.max.z;
+            const sizeX = Math.ceil((maxX - minX) / resolution);
+            const sizeY = Math.ceil((maxY - minY) / resolution);
+            const sizeZ = Math.ceil((maxZ - minZ) / resolution);
+            log(`グリッドサイズ: ${sizeX} x ${sizeY} x ${sizeZ}`);
+
+            const positions = geometry.getAttribute('position');
+            const triangles = [];
+            for (let i = 0; i < positions.count; i += 3) {
+                triangles.push([
+                    new THREE.Vector3(positions.getX(i), positions.getY(i), positions.getZ(i)),
+                    new THREE.Vector3(positions.getX(i + 1), positions.getY(i + 1), positions.getZ(i + 1)),
+                    new THREE.Vector3(positions.getX(i + 2), positions.getY(i + 2), positions.getZ(i + 2))
+                ]);
+            }
+            log(`三角形数: ${triangles.length}`);
+
+            const voxels = new Set();
+            for (const tri of triangles) {
+                const samples = sampleTriangle(tri[0], tri[1], tri[2], resolution / 2);
+                for (const p of samples) {
+                    const vx = Math.floor((p.x - minX) / resolution);
+                    const vy = Math.floor((p.y - minY) / resolution);
+                    const vz = Math.floor((p.z - minZ) / resolution);
+                    voxels.add(`${vx},${vy},${vz}`);
+                }
+            }
+
+            const result = [];
+            for (const key of voxels) {
+                const [x, y, z] = key.split(',').map(Number);
+                result.push([x, y, z]);
+            }
+            log(`ボクセル数: ${result.length}`, 'success');
+            return result;
+        }
+
+        function sampleTriangle(v0, v1, v2, step) {
+            const points = [];
+            const edge1 = new THREE.Vector3().subVectors(v1, v0);
+            const edge2 = new THREE.Vector3().subVectors(v2, v0);
+            const cross = new THREE.Vector3().crossVectors(edge1, edge2);
+            const area = cross.length() / 2;
+            // Cap samples at 100 to prevent memory explosion on large triangles
+            const numSamples = Math.min(100, Math.max(1, Math.ceil(area / (step * step))));
+            for (let i = 0; i <= numSamples; i++) {
+                for (let j = 0; j <= numSamples - i; j++) {
+                    const u = i / numSamples, v = j / numSamples, w = 1 - u - v;
+                    points.push(new THREE.Vector3(
+                        w * v0.x + u * v1.x + v * v2.x,
+                        w * v0.y + u * v1.y + v * v2.y,
+                        w * v0.z + u * v1.z + v * v2.z
+                    ));
+                }
+            }
+            return points;
+        }
+
+        function generate3DModelCommands(voxels, blockId, scale = 1) {
+            const commands = [];
+            let pos = [0, 0, 0];
+            const sorted = [...voxels].sort((a, b) => {
+                if (a[1] !== b[1]) return a[1] - b[1];
+                if (a[2] !== b[2]) return a[2] - b[2];
+                return a[0] - b[0];
+            });
+            for (let i = 0; i < sorted.length; i++) {
+                const [x, y, z] = sorted[i];
+                const axes = ['x', 'y', 'z'];
+                const target = [x, y, z];
+                for (let j = 0; j < 3; j++) {
+                    const diff = Math.floor(target[j] * scale - pos[j] * scale);
+                    if (diff !== 0) {
+                        commands.push(`/shift ${axes[j]} ${diff}`);
+                        pos[j] = target[j];
+                    }
+                }
+                commands.push(`/s ${blockId}`);
+                if (i % 1000 === 0) setProgress(Math.floor((i / sorted.length) * 100));
+            }
+            return commands;
+        }
+
         // ========== Commands ==========
         function generateCommands(blocks, scale = 1) {
             const commands = [];
@@ -826,13 +1216,53 @@
         }
 
         function createLink(commands, fileName) {
-            const blob = new Blob([commands.join('\n')], { type: 'text/plain' });
+            const commandText = commands.join('\n');
+            const blob = new Blob([commandText], { type: 'text/plain' });
+
+            // コンテナを作成
+            const item = document.createElement('div');
+            item.className = 'download-item';
+
+            // ヘッダー（ファイル名とコマンド数）
+            const header = document.createElement('div');
+            header.className = 'download-item-header';
+            header.textContent = `${fileName} (${commands.length}コマンド)`;
+            item.appendChild(header);
+
+            // ボタンコンテナ
+            const buttons = document.createElement('div');
+            buttons.className = 'download-buttons';
+
+            // ダウンロードリンク
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
             link.className = 'download-link';
-            link.textContent = `${fileName} (${commands.length})`;
-            downloadArea.appendChild(link);
+            link.textContent = 'ダウンロード';
+            buttons.appendChild(link);
+
+            // コピーボタン
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = 'コピー';
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(commandText);
+                    copyBtn.textContent = 'コピー完了！';
+                    copyBtn.classList.add('copied');
+                    log(`コピーしました: ${fileName}`, 'success');
+                    setTimeout(() => {
+                        copyBtn.textContent = 'コピー';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    log(`コピー失敗: ${err.message}`, 'error');
+                }
+            });
+            buttons.appendChild(copyBtn);
+
+            item.appendChild(buttons);
+            downloadArea.appendChild(item);
             log(`準備完了: ${fileName}`, 'success');
         }
 
@@ -893,40 +1323,119 @@
         // ========== Process ==========
         async function processFile(file) {
             try {
+                    userResolutionLocked = false;
+                    currentGeometry = null;
                 currentFileName = file.name;
+                const ext = file.name.split('.').pop().toLowerCase();
                 log(`読み込み: ${file.name}`);
                 updateStatus('fileName', file.name);
                 setProgress(0);
 
-                const buf = await file.arrayBuffer();
-                let data;
-                try {
-                    data = pako.inflate(new Uint8Array(buf));
-                } catch {
-                    data = new Uint8Array(buf);
+                if (['obj', 'stl'].includes(ext)) {
+                    is3DModel = true;
+                    log('3Dモデルを読み込み中...', 'success');
+                    const geometry = await load3DModel(file);
+                    currentGeometry = geometry;
+
+                    // Calculate optimal resolution based on model size
+                    const autoRes = calculateOptimalResolution(geometry);
+                    log(`モデルサイズ: ${autoRes.modelSize.x} x ${autoRes.modelSize.y} x ${autoRes.modelSize.z}`);
+                    log(`推奨解像度: ${autoRes.resolution} (推定ボクセル数: ${autoRes.estimatedVoxels.toLocaleString()})`);
+
+                    const resInput = resolutionInput;
+                    if (!userResolutionLocked) {
+                        // Refresh to the auto value for each new file unless the user explicitly typed a value
+                        resInput.value = autoRes.resolution;
+                    }
+
+                    const userRes = parseFloat(resInput.value);
+                    let resolution = autoRes.resolution;
+                    if (userResolutionLocked && userRes && userRes > 0) {
+                        const bbox = geometry.boundingBox;
+                        const estVoxels = ((bbox.max.x - bbox.min.x) / userRes) *
+                            ((bbox.max.y - bbox.min.y) / userRes) *
+                            ((bbox.max.z - bbox.min.z) / userRes);
+                        if (estVoxels > 500000) {
+                            log(`警告: ユーザー設定の解像度 ${userRes} だと約${Math.floor(estVoxels).toLocaleString()}ボクセルになります`, 'warning');
+                            log(`自動調整された解像度 ${autoRes.resolution} を使用します`, 'warning');
+                        } else {
+                            resolution = userRes;
+                        }
+                    }
+
+                    // Update UI with actual resolution used for this file
+                    resInput.value = resolution;
+
+                    current3DVoxels = voxelizeMesh(geometry, resolution);
+                    currentBlocks = [];
+                    updateStatus('blockCount', current3DVoxels.length);
+                    unknownList.innerHTML = '<div class="empty-state">3Dモデル: ブロックマッピング不要</div>';
+                    convertBtn.disabled = false;
+                } else {
+                    is3DModel = false;
+                    const buf = await file.arrayBuffer();
+                    let data;
+                    try { data = pako.inflate(new Uint8Array(buf)); }
+                    catch { data = new Uint8Array(buf); }
+                    currentBlocks = loadNBT(data);
+                    current3DVoxels = [];
+                    updateStatus('blockCount', currentBlocks.length);
+                    log(`ブロック: ${currentBlocks.length}`, 'success');
+                    unknownBlocks = findUnknown(currentBlocks);
+                    renderUnknownBlocks(unknownBlocks);
+                    if (Object.keys(unknownBlocks).length > 0) {
+                        log(`未対応: ${Object.keys(unknownBlocks).length}種類`, 'warning');
+                    }
+                    convertBtn.disabled = false;
                 }
-
-                currentBlocks = loadNBT(data);
-                updateStatus('blockCount', currentBlocks.length);
-                log(`ブロック: ${currentBlocks.length}`, 'success');
-
-                unknownBlocks = findUnknown(currentBlocks);
-                renderUnknownBlocks(unknownBlocks);
-
-                if (Object.keys(unknownBlocks).length > 0) {
-                    log(`未対応: ${Object.keys(unknownBlocks).length}種類`, 'warning');
-                }
-
-                convertBtn.disabled = false;
             } catch (e) {
                 log(`エラー: ${e.message}`, 'error');
+                console.error(e);
             }
         }
 
         function doConvert() {
-            collectMappings();
             const scale = parseInt(document.getElementById('scale').value) || 1;
-            const commands = generateCommands(currentBlocks, scale);
+            let commands;
+            if (is3DModel) {
+                if (!currentGeometry) {
+                    log('3Dモデルが読み込まれていません', 'error');
+                    return;
+                }
+
+                // Recalculate resolution at conversion time in case the user edited the value after load
+                const autoRes = calculateOptimalResolution(currentGeometry);
+                const resInput = resolutionInput;
+                if (!userResolutionLocked) {
+                    resInput.value = autoRes.resolution;
+                }
+
+                const userRes = parseFloat(resInput.value);
+                let resolution = autoRes.resolution;
+                if (userRes && userRes > 0) {
+                    if (!currentGeometry.boundingBox) currentGeometry.computeBoundingBox();
+                    const bbox = currentGeometry.boundingBox;
+                    const estVoxels = ((bbox.max.x - bbox.min.x) / userRes) *
+                        ((bbox.max.y - bbox.min.y) / userRes) *
+                        ((bbox.max.z - bbox.min.z) / userRes);
+                    if (estVoxels > 500000) {
+                        log(`警告: ユーザー設定の解像度 ${userRes} だと約${Math.floor(estVoxels).toLocaleString()}ボクセルになります`, 'warning');
+                        log(`自動調整された解像度 ${autoRes.resolution} を使用します`, 'warning');
+                    } else {
+                        resolution = userRes;
+                    }
+                }
+                resInput.value = resolution;
+
+                current3DVoxels = voxelizeMesh(currentGeometry, resolution);
+                updateStatus('blockCount', current3DVoxels.length);
+
+                const blockId = document.getElementById('blockId').value || 'default:stone';
+                commands = generate3DModelCommands(current3DVoxels, blockId, scale);
+            } else {
+                collectMappings();
+                commands = generateCommands(currentBlocks, scale);
+            }
             updateStatus('commandCount', commands.length);
             setProgress(100);
             saveCommands(commands, currentFileName.replace(/\.[^.]+$/, ''));
@@ -944,6 +1453,126 @@
         });
         fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
         convertBtn.addEventListener('click', doConvert);
+
+        // ========== 3D Preview ==========
+        const previewBtn = document.getElementById('previewBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewClose = document.getElementById('previewClose');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewInfo = document.getElementById('previewInfo');
+        const resetViewBtn = document.getElementById('resetViewBtn');
+        const toggleWireBtn = document.getElementById('toggleWireBtn');
+
+        let previewScene, previewCamera, previewRenderer, previewMesh;
+        let previewCtrl = { drag: false, lx: 0, ly: 0, rx: 0.5, ry: 0.5, zoom: 1 };
+        let wireMode = false, animId = null;
+
+        function initPreview() {
+            previewScene = new THREE.Scene();
+            previewScene.background = new THREE.Color(0x1a1a1a);
+            const c = previewCanvas.parentElement;
+            previewCamera = new THREE.PerspectiveCamera(60, c.clientWidth / c.clientHeight, 0.1, 10000);
+            previewCamera.position.set(0, 0, 100);
+            previewRenderer = new THREE.WebGLRenderer({ canvas: previewCanvas, antialias: true });
+            previewRenderer.setSize(c.clientWidth, c.clientHeight);
+            previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            previewScene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const d1 = new THREE.DirectionalLight(0xffffff, 0.6); d1.position.set(1, 1, 1); previewScene.add(d1);
+            const d2 = new THREE.DirectionalLight(0xffffff, 0.3); d2.position.set(-1, -1, -1); previewScene.add(d2);
+        }
+
+        function createVoxels(vox, isNBT) {
+            if (previewMesh) { previewScene.remove(previewMesh); previewMesh.geometry?.dispose(); previewMesh.material?.dispose(); }
+            if (!vox.length) return;
+            let mnX = Infinity, mnY = Infinity, mnZ = Infinity, mxX = -Infinity, mxY = -Infinity, mxZ = -Infinity;
+            for (const v of vox) { const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; mnX = Math.min(mnX, x); mxX = Math.max(mxX, x); mnY = Math.min(mnY, y); mxY = Math.max(mxY, y); mnZ = Math.min(mnZ, z); mxZ = Math.max(mxZ, z); }
+            const cx = (mnX + mxX) / 2, cy = (mnY + mxY) / 2, cz = (mnZ + mxZ) / 2, sz = Math.max(mxX - mnX, mxY - mnY, mxZ - mnZ) + 1;
+            const geo = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+            const mat = new THREE.MeshLambertMaterial({ color: 0x4a90d9, wireframe: wireMode });
+            const mesh = new THREE.InstancedMesh(geo, mat, vox.length);
+            const m = new THREE.Matrix4();
+            for (let i = 0; i < vox.length; i++) { const v = vox[i]; const [x, y, z] = isNBT ? [v[0], v[1], v[2]] : v; m.setPosition(x - cx, y - cy, z - cz); mesh.setMatrixAt(i, m); }
+            mesh.instanceMatrix.needsUpdate = true;
+            previewScene.add(mesh); previewMesh = mesh;
+            previewCamera.position.set(0, 0, sz * 1.5); previewCamera.lookAt(0, 0, 0);
+            previewCtrl.zoom = 1; previewCtrl.rx = 0.5; previewCtrl.ry = 0.5;
+            previewInfo.textContent = `${vox.length.toLocaleString()} ボクセル | ${Math.ceil(mxX - mnX + 1)}x${Math.ceil(mxY - mnY + 1)}x${Math.ceil(mxZ - mnZ + 1)}`;
+        }
+
+        function renderLoop() {
+            if (!previewMesh) return;
+            previewMesh.rotation.x = previewCtrl.ry * Math.PI;
+            previewMesh.rotation.y = previewCtrl.rx * Math.PI;
+            previewRenderer.render(previewScene, previewCamera);
+            animId = requestAnimationFrame(renderLoop);
+        }
+
+        function openPreview() {
+            if (!previewScene) initPreview();
+            const vox = is3DModel ? current3DVoxels : currentBlocks;
+            if (!vox.length) { log('プレビューするデータがありません', 'error'); return; }
+            const maxVox = 100000;
+            let pv = vox.length > maxVox ? (log(`プレビューを${maxVox}に制限`, 'warning'), vox.slice(0, maxVox)) : vox;
+            createVoxels(pv, !is3DModel);
+            previewModal.classList.add('active');
+            const c = previewCanvas.parentElement;
+            previewRenderer.setSize(c.clientWidth, c.clientHeight);
+            previewCamera.aspect = c.clientWidth / c.clientHeight;
+            previewCamera.updateProjectionMatrix();
+            renderLoop();
+        }
+
+        function closePreview() {
+            previewModal.classList.remove('active');
+            if (animId) { cancelAnimationFrame(animId); animId = null; }
+        }
+
+        previewCanvas.addEventListener('mousedown', e => { previewCtrl.drag = true; previewCtrl.lx = e.clientX; previewCtrl.ly = e.clientY; });
+        previewCanvas.addEventListener('mousemove', e => {
+            if (!previewCtrl.drag) return;
+            previewCtrl.rx += (e.clientX - previewCtrl.lx) * 0.005;
+            previewCtrl.ry += (e.clientY - previewCtrl.ly) * 0.005;
+            previewCtrl.lx = e.clientX; previewCtrl.ly = e.clientY;
+        });
+        previewCanvas.addEventListener('mouseup', () => previewCtrl.drag = false);
+        previewCanvas.addEventListener('mouseleave', () => previewCtrl.drag = false);
+        previewCanvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+            previewCamera.position.z *= zoomFactor;
+            previewCamera.position.z = Math.max(1, Math.min(10000, previewCamera.position.z));
+        });
+
+        previewBtn.addEventListener('click', openPreview);
+        previewClose.addEventListener('click', closePreview);
+        resetViewBtn.addEventListener('click', () => {
+            previewCtrl.rx = 0.5;
+            previewCtrl.ry = 0.5;
+            if (previewMesh) {
+                const vox = is3DModel ? current3DVoxels : currentBlocks;
+                if (vox.length > 0) {
+                    let mxX = -Infinity, mxY = -Infinity, mxZ = -Infinity, mnX = Infinity, mnY = Infinity, mnZ = Infinity;
+                    for (const v of vox) {
+                        const [x, y, z] = is3DModel ? v : [v[0], v[1], v[2]];
+                        mnX = Math.min(mnX, x); mxX = Math.max(mxX, x);
+                        mnY = Math.min(mnY, y); mxY = Math.max(mxY, y);
+                        mnZ = Math.min(mnZ, z); mxZ = Math.max(mxZ, z);
+                    }
+                    const sz = Math.max(mxX - mnX, mxY - mnY, mxZ - mnZ) + 1;
+                    previewCamera.position.z = sz * 1.5;
+                } else {
+                    previewCamera.position.z = 100;
+                }
+            }
+        });
+        toggleWireBtn.addEventListener('click', () => { wireMode = !wireMode; if (previewMesh?.material) previewMesh.material.wireframe = wireMode; toggleWireBtn.textContent = wireMode ? 'ソリッド表示' : 'ワイヤー表示'; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && previewModal.classList.contains('active')) closePreview(); });
+
+        const origProcess = processFile;
+        processFile = async function (f) {
+            await origProcess(f);
+            previewBtn.disabled = !((is3DModel && current3DVoxels.length > 0) || (!is3DModel && currentBlocks.length > 0));
+        };
 
         log('準備完了');
     </script>

@@ -2,3 +2,6 @@
 *.nbt
 *.obj
 *.txt
+*.ply
+*.stl
+*.mtl
